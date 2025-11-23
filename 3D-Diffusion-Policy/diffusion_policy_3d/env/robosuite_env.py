@@ -310,14 +310,12 @@ def test():
         use_mask_obs=True,
         bounding_boxes=dict(
             frontview=dict(
-                x=[-0.5, 0.5],
-                y=[-0.4, 2],
-                z=[1, 2.35]
+                lower_bound=[-0.5, -0.4, 1.0],
+                upper_bound=[0.5, 2.0, 2.35]
             ),
             robot0_eye_in_hand=dict(
-                x=[-0.5, 0.5],
-                y=[-0.5, 0.5],
-                z=[0, 0.5]
+                lower_bound=[-0.5, -0.5, 0.0],
+                upper_bound=[0.5, 0.5, 0.5]
             )
         )
     )
@@ -335,7 +333,3 @@ def test():
     colors[pc_mask == 0] = [0, 1, 0]   # green = environment
     pc_o3d.colors = o3d.utility.Vector3dVector(colors)
     o3d.visualization.draw_geometries([pc_o3d])
-
-
-if __name__ == "__main__":
-    test()
