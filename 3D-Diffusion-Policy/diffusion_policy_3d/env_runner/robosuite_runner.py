@@ -14,20 +14,25 @@ from termcolor import cprint
 
 
 class RobosuiteRunner(BaseRunner):
-    def __init__(self,
-                 output_dir,
-                 eval_episodes=20,
-                 max_steps=200,
-                 n_obs_steps=8,
-                 n_action_steps=8,
-                 fps=10,
-                 crf=22,
-                 render_size=84,
-                 tqdm_interval_sec=5.0,
-                 task_name=None,
-                 use_point_crop=True,
-                 ):
+
+    def __init__(
+        self,
+        output_dir,
+        shape_meta,
+        eval_episodes=20,
+        max_steps=200,
+        n_obs_steps=8,
+        n_action_steps=8,
+        fps=10,
+        crf=22,
+        render_size=84,
+        tqdm_interval_sec=5.0,
+        task_name=None,
+        camera_names=list(),
+        bounding_boxes=dict(),
+    ):
         super().__init__(output_dir)
+        self.shape_meta = shape_meta
         self.task_name = task_name
 
         steps_per_render = max(10 // fps, 1)
@@ -35,8 +40,15 @@ class RobosuiteRunner(BaseRunner):
         def env_fn():
             return MultiStepWrapper(
                 SimpleVideoRecordingWrapper(
-                    MujocoPointcloudWrapperAdroit(env=AdroitEnv(env_name=task_name, use_point_cloud=True),
-                                                  env_name='adroit_'+task_name, use_point_crop=use_point_crop)),
+                    env=RobosuiteEnv(
+                        env_name=task_name,
+                        robots="Panda",
+                        camera_names=camera_names,
+                        bounding_boxes=bounding_boxes,
+                        render_image_size=render_size
+                    ),
+                    steps_per_render=steps_per_render
+                ),
                 n_obs_steps=n_obs_steps,
                 n_action_steps=n_action_steps,
                 max_episode_steps=max_steps,
@@ -64,8 +76,6 @@ class RobosuiteRunner(BaseRunner):
         all_goal_achieved = []
         all_success_rates = []
         
-
-
         for episode_idx in tqdm.tqdm(range(self.eval_episodes), desc=f"Eval in Adroit {self.task_name} Pointcloud Env",
                                      leave=False, mininterval=self.tqdm_interval_sec):
                 
@@ -78,33 +88,26 @@ class RobosuiteRunner(BaseRunner):
             actual_step_count = 0
             while not done:
                 # create obs dict
-                np_obs_dict = dict(obs)
+                np_obs_dict = {key: obs[key] for key in self.shape_meta['obs'].keys()}
                 # device transfer
                 obs_dict = dict_apply(np_obs_dict,
-                                      lambda x: torch.from_numpy(x).to(
+                                      lambda x: torch.from_numpy(x).unsqueeze(0).to(
                                           device=device))
-
                 # run policy
                 with torch.no_grad():
-                    obs_dict_input = {}  # flush unused keys
-                    obs_dict_input['point_cloud'] = obs_dict['point_cloud'].unsqueeze(0)
-                    obs_dict_input['agent_pos'] = obs_dict['agent_pos'].unsqueeze(0)
-                    action_dict = policy.predict_action(obs_dict_input)
-                    
-
+                    action_dict = policy.predict_action(obs_dict)
                 # device_transfer
                 np_action_dict = dict_apply(action_dict,
                                             lambda x: x.detach().to('cpu').numpy())
-
                 action = np_action_dict['action'].squeeze(0)
                 # step env
                 obs, reward, done, info = env.step(action)
                 # all_goal_achieved.append(info['goal_achieved']
-                num_goal_achieved += np.sum(info['goal_achieved'])
+                num_goal_achieved += np.sum(info['is_success'])
                 done = np.all(done)
                 actual_step_count += 1
 
-            all_success_rates.append(info['goal_achieved'])
+            all_success_rates.append(info['is_success'])
             all_goal_achieved.append(num_goal_achieved)
 
 
