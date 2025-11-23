@@ -28,7 +28,6 @@ class RobosuiteRunner(BaseRunner):
         render_size=84,
         tqdm_interval_sec=5.0,
         task_name=None,
-        camera_names=list(),
         bounding_boxes=dict(),
     ):
         super().__init__(output_dir)
@@ -43,7 +42,7 @@ class RobosuiteRunner(BaseRunner):
                     env=RobosuiteEnv(
                         env_name=task_name,
                         robots="Panda",
-                        camera_names=camera_names,
+                        camera_names=list(bounding_boxes.keys()),
                         bounding_boxes=bounding_boxes,
                         render_image_size=render_size
                     ),

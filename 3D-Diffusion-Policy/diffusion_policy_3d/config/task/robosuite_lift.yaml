@@ -22,14 +22,21 @@ shape_meta: &shape_meta
 
 env_runner:
   _target_: diffusion_policy_3d.env_runner.robosuite_runner.RobosuiteRunner
+  shape_meta: ${shape_meta}
   eval_episodes: 20
-  max_steps: 300
+  max_steps: 200
   n_obs_steps: ${n_obs_steps}
   n_action_steps: ${n_action_steps}
   fps: 10
-  task_name: door
-  render_size: 84
-  use_point_crop: ${policy.use_point_crop}
+  task_name: Lift
+  render_size: 256
+  bounding_boxes:
+    frontview:
+      lower_bound: [-0.5, -0.4, 1.0]
+      upper_bound: [0.5, 2.0, 2.35]
+    robot0_eye_in_hand:
+      lower_bound: [-0.5, -0.5, 0.0]
+      upper_bound: [0.5, 0.5, 0.5]
 
 dataset:
   _target_: diffusion_policy_3d.dataset.adroit_dataset.AdroitDataset
