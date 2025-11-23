@@ -39,8 +39,9 @@ env_runner:
       upper_bound: [0.5, 0.5, 0.5]
 
 dataset:
-  _target_: diffusion_policy_3d.dataset.adroit_dataset.AdroitDataset
-  zarr_path: data/adroit_door_expert.zarr
+  _target_: diffusion_policy_3d.dataset.robosuite_dataset.RobosuiteDataset
+  zarr_path: data/robosuite_lift.zarr
+  shape_meta: ${shape_meta}
   horizon: ${horizon}
   pad_before: ${eval:'${n_obs_steps}-1'}
   pad_after: ${eval:'${n_action_steps}-1'}
