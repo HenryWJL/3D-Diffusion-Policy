@@ -3,7 +3,6 @@ import numpy as np
 import torch
 import tqdm
 from diffusion_policy_3d.env import RobosuiteEnv
-from diffusion_policy_3d.gym_util.mjpc_diffusion_wrapper import MujocoPointcloudWrapperAdroit
 from diffusion_policy_3d.gym_util.multistep_wrapper import MultiStepWrapper
 from diffusion_policy_3d.gym_util.video_recording_wrapper import SimpleVideoRecordingWrapper
 
@@ -14,7 +13,7 @@ import diffusion_policy_3d.common.logger_util as logger_util
 from termcolor import cprint
 
 
-class AdroitRunner(BaseRunner):
+class RobosuiteRunner(BaseRunner):
     def __init__(self,
                  output_dir,
                  eval_episodes=20,
