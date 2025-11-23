@@ -29,8 +29,8 @@ from robosuite.utils.camera_utils import (
     get_camera_intrinsic_matrix,
     get_camera_extrinsic_matrix
 )
-from diffusion_policy_3d.util.pc_util import pc_normalize, depth2pc
-from diffusion_policy_3d.util.transform_util import RotationTransformer
+from diffusion_policy_3d.common.pc_util import pc_normalize, depth2pc
+from diffusion_policy_3d.common.transform_util import RotationTransformer
 
 
 def get_box_space(sample: np.ndarray) -> spaces.Box:
