@@ -6,7 +6,13 @@ from diffusion_policy_3d.common.pytorch_util import dict_apply
 from diffusion_policy_3d.common.replay_buffer import ReplayBuffer
 from diffusion_policy_3d.common.sampler import (
     SequenceSampler, get_val_mask, downsample_mask)
-from diffusion_policy_3d.model.common.normalizer import LinearNormalizer, SingleFieldLinearNormalizer
+from diffusion_policy_3d.model.common.normalizer import LinearNormalizer
+from diffusion_policy_3d.common.normalize_util import (
+    array_to_stats,
+    get_identity_normalizer_from_stat,
+    get_range_normalizer_from_stat,
+    robomimic_abs_action_only_normalizer_from_stat
+)
 from diffusion_policy_3d.dataset.base_dataset import BaseDataset
 
 class RobosuiteDataset(BaseDataset):
@@ -70,7 +76,6 @@ class RobosuiteDataset(BaseDataset):
         # return normalizer
     
         normalizer = LinearNormalizer()
-
         # action
         stat = array_to_stats(self.replay_buffer['action'])
         normalizer['action'] = robomimic_abs_action_only_normalizer_from_stat(stat)
@@ -107,8 +112,26 @@ class RobosuiteDataset(BaseDataset):
         return data
     
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        sample = self.sampler.sample_sequence(idx)
-        data = self._sample_to_data(sample)
-        torch_data = dict_apply(data, torch.from_numpy)
+        # sample = self.sampler.sample_sequence(idx)
+        # data = self._sample_to_data(sample)
+        # torch_data = dict_apply(data, torch.from_numpy)
+        # return torch_data
+        data = self.sampler.sample_sequence(idx)
+
+        # to save RAM, only return first n_obs_steps of OBS
+        # since the rest will be discarded anyway.
+        # when self.n_obs_steps is None
+        # this slice does nothing (takes all)
+        T_slice = slice(self.n_obs_steps)
+
+        obs_dict = dict()
+        for key in self.shape_meta['obs'].keys():
+            obs_dict[key] = data[key][T_slice].astype(np.float32)
+            del data[key]
+
+        torch_data = {
+            'obs': dict_apply(obs_dict, torch.from_numpy),
+            'action': torch.from_numpy(data['action'].astype(np.float32))
+        }
         return torch_data
 
