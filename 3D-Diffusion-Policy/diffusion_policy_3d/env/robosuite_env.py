@@ -188,7 +188,7 @@ class RobosuiteEnv(gym.Env):
                     pc = pc_normalize(pc)
                 obs[f'{camera_name}_pc'] = pc
                 if seg_mask is not None:
-                    obs[f'{camera_name}_mask'] = seg_mask[fps_idx]
+                    obs[f'{camera_name}_pc_mask'] = seg_mask[fps_idx]
         # Low dims
         for key in raw_obs.keys():
             if not key.endswith("image") and not key.endswith("depth") and not key.endswith("segmentation_element"):
@@ -251,7 +251,11 @@ class RobosuiteEnv(gym.Env):
 
     def step(self, action: np.ndarray) -> Tuple:
         if action.shape[0] == 10:
-            action = self.rotation_transformer.forward(action)
+            trans = action[:3]
+            rot = action[3:9]
+            gripper = action[[-1]]
+            rot = self.rotation_transformer.forward(rot)
+            action = np.concatenate([trans, rot, gripper])
         raw_obs, reward, _, info = self._env.step(action)
         obs = self._extract_obs(raw_obs)
         # Task is done if having a success for 10 consecutive timesteps. Code is adapted from
@@ -319,9 +323,9 @@ def test():
     )
     obs = env.reset(seed=42)
     env.render()
-    env.step(env.action_space.sample())
+    env.step(np.random.rand(10))
     pc = obs[f'{camera_name}_pc']
-    pc_mask = obs[f'{camera_name}_mask']
+    pc_mask = obs[f'{camera_name}_pc_mask']
 
     # Visualize point clouds
     pc_o3d = o3d.geometry.PointCloud()
