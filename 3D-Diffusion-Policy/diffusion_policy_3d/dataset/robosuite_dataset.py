@@ -83,15 +83,12 @@ class RobosuiteDataset(BaseDataset):
         for key in self.shape_meta['obs'].keys():
             stat = array_to_stats(self.replay_buffer[key])
             if key.endswith('pos'):
-                this_normalizer = get_range_normalizer_from_stat(stat)
+                normalizer[key] = get_range_normalizer_from_stat(stat)
             elif key.endswith('quat'):
                 # quaternion is in [-1,1] already
-                this_normalizer = get_identity_normalizer_from_stat(stat)
+                normalizer[key] = get_identity_normalizer_from_stat(stat)
             elif key.endswith('qpos'):
-                this_normalizer = get_range_normalizer_from_stat(stat)
-            else:
-                raise RuntimeError('unsupported')
-            normalizer[key] = this_normalizer
+                normalizer[key] = get_range_normalizer_from_stat(stat)
 
         return normalizer
 
