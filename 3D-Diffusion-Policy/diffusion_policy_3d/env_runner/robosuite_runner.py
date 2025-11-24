@@ -44,7 +44,7 @@ class RobosuiteRunner(BaseRunner):
                         robots="Panda",
                         camera_names=list(bounding_boxes.keys()),
                         bounding_boxes=bounding_boxes,
-                        render_image_size=render_size
+                        render_image_size=(render_size, render_size)
                     ),
                     steps_per_render=steps_per_render
                 ),
