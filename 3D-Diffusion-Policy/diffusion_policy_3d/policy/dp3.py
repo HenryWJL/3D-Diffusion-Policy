@@ -261,9 +261,6 @@ class DP3(BasePolicy):
 
         nobs = self.normalizer.normalize(batch['obs'])
         nactions = self.normalizer['action'].normalize(batch['action'])
-
-        if not self.use_pc_color:
-            nobs['point_cloud'] = nobs['point_cloud'][..., :3]
         
         batch_size = nactions.shape[0]
         horizon = nactions.shape[1]
