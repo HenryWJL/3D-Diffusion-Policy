@@ -268,7 +268,7 @@ class DP3(BasePolicy):
         # handle different ways of passing observation
         local_cond = None
         global_cond = None
-        trajectory = nactions
+        trajectory = nactions.float()
         cond_data = trajectory
         
        
@@ -302,7 +302,7 @@ class DP3(BasePolicy):
         condition_mask = self.mask_generator(trajectory.shape)
 
         # Sample noise that we'll add to the images
-        noise = torch.randn(trajectory.shape, device=trajectory.device)
+        noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
 
         
         bsz = trajectory.shape[0]
