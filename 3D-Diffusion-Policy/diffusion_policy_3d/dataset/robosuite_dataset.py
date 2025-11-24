@@ -89,7 +89,10 @@ class RobosuiteDataset(BaseDataset):
                 normalizer[key] = get_identity_normalizer_from_stat(stat)
             elif key.endswith('qpos'):
                 normalizer[key] = get_range_normalizer_from_stat(stat)
-
+            elif key.endswith('pc'):
+                normalizer[key] = get_identity_normalizer_from_stat(stat)
+            elif key.endswith('pc_mask'):
+                normalizer[key] = get_identity_normalizer_from_stat(stat)
         return normalizer
 
     def __len__(self) -> int:
@@ -119,7 +122,7 @@ class RobosuiteDataset(BaseDataset):
         # since the rest will be discarded anyway.
         # when self.n_obs_steps is None
         # this slice does nothing (takes all)
-        T_slice = slice(self.n_obs_steps)
+        T_slice = slice(2)
 
         obs_dict = dict()
         for key in self.shape_meta['obs'].keys():
