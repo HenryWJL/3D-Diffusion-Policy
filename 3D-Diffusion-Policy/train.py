@@ -323,6 +323,19 @@ class TrainDP3Workspace:
 
                 # if topk_ckpt_path is not None:
                 #     self.save_checkpoint(path=topk_ckpt_path)
+
+                # Upload to HuggingFace Hub
+                from huggingface_hub import HfApi
+                api = HfApi()
+                repo_id = "HenryWJL/dp3"
+                ckpt_path = self.get_checkpoint_path()
+                api.upload_file(
+                    path_or_fileobj=ckpt_path,
+                    path_in_repo=f"{cfg.task_name}/{self.epoch}.pth",
+                    repo_id=repo_id,
+                    repo_type="model",
+                    commit_message="Add checkpoints"
+                )
             # ========= eval end for this epoch ==========
             policy.train()
 
