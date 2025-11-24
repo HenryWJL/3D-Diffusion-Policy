@@ -212,39 +212,29 @@ class DP3Encoder(nn.Module):
                  pointnet_type='pointnet',
                  ):
         super().__init__()
-        self.imagination_key = 'imagin_robot'
-        self.state_key = 'agent_pos'
-        self.point_cloud_key = 'point_cloud'
-        self.rgb_image_key = 'image'
-        self.n_output_channels = out_channel
+        self.state_key = ['robot0_eef_pos', 'robot0_eef_quat', 'robot0_gripper_qpos']
+        self.point_cloud_key = [key for key in observation_space.keys() if key.endswith("pc")]
         
-        self.use_imagined_robot = self.imagination_key in observation_space.keys()
-        self.point_cloud_shape = observation_space[self.point_cloud_key]
-        self.state_shape = observation_space[self.state_key]
-        if self.use_imagined_robot:
-            self.imagination_shape = observation_space[self.imagination_key]
-        else:
-            self.imagination_shape = None
-            
-        
+        self.point_cloud_shape = observation_space[self.point_cloud_key[0]]
+        self.state_shape = [sum(observation_space[key][0] for key in self.state_key)]
         
         cprint(f"[DP3Encoder] point cloud shape: {self.point_cloud_shape}", "yellow")
         cprint(f"[DP3Encoder] state shape: {self.state_shape}", "yellow")
-        cprint(f"[DP3Encoder] imagination point shape: {self.imagination_shape}", "yellow")
-        
 
         self.use_pc_color = use_pc_color
         self.pointnet_type = pointnet_type
+        backbone = None
         if pointnet_type == "pointnet":
             if use_pc_color:
                 pointcloud_encoder_cfg.in_channels = 6
-                self.extractor = PointNetEncoderXYZRGB(**pointcloud_encoder_cfg)
+                backbone = PointNetEncoderXYZRGB(**pointcloud_encoder_cfg)
             else:
                 pointcloud_encoder_cfg.in_channels = 3
-                self.extractor = PointNetEncoderXYZ(**pointcloud_encoder_cfg)
+                backbone = PointNetEncoderXYZ(**pointcloud_encoder_cfg)
         else:
             raise NotImplementedError(f"pointnet_type: {pointnet_type}")
-
+        self.extractor = nn.ModuleDict({key: copy.deepcopy(backbone) for key in self.point_cloud_key})
+        self.n_output_channels = out_channel * len(self.point_cloud_key)
 
         if len(state_mlp_size) == 0:
             raise RuntimeError(f"State mlp size is empty")
@@ -261,17 +251,10 @@ class DP3Encoder(nn.Module):
 
 
     def forward(self, observations: Dict) -> torch.Tensor:
-        points = observations[self.point_cloud_key]
-        assert len(points.shape) == 3, cprint(f"point cloud shape: {points.shape}, length should be 3", "red")
-        if self.use_imagined_robot:
-            img_points = observations[self.imagination_key][..., :points.shape[-1]] # align the last dim
-            points = torch.concat([points, img_points], dim=1)
-        
-        # points = torch.transpose(points, 1, 2)   # B * 3 * N
-        # points: B * 3 * (N + sum(Ni))
-        pn_feat = self.extractor(points)    # B * out_channel
-            
-        state = observations[self.state_key]
+        pn_feat = torch.cat([
+            self.extractor[key](observations[key]) for key in self.point_cloud_key
+        ], dim=-1)    
+        state = torch.cat([observations[key] for key in self.state_key], dim=-1)
         state_feat = self.state_mlp(state)  # B * 64
         final_feat = torch.cat([pn_feat, state_feat], dim=-1)
         return final_feat
