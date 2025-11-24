@@ -271,7 +271,7 @@ class RobosuiteEnv(gym.Env):
         info['is_success'] = done
         return obs, reward, done, info
 
-    def render(self) -> None:
+    def render(self, **kwargs) -> None:
         """Render from simulation to either an on-screen window or off-screen to RGB array."""
         if self.render_mode == "human":
             cam_id = self._env.sim.model.camera_name2id(self.render_camera)
