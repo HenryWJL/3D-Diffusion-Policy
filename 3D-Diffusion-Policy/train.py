@@ -66,7 +66,7 @@ class TrainDP3Workspace:
 
         # configure training state
         self.global_step = 0
-        self.epoch = 0
+        self.epoch = 1
 
     def run(self):
         cfg = copy.deepcopy(self.cfg)
