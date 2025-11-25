@@ -1,6 +1,7 @@
 # python related
 *.egg-info/
 *.pyc
+*.so
 .DS_Store
 __pycache__/
 scripts/plot/pdfs/
