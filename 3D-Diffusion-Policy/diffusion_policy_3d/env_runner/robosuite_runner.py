@@ -75,7 +75,7 @@ class RobosuiteRunner(BaseRunner):
         all_goal_achieved = []
         all_success_rates = []
         
-        for episode_idx in tqdm.tqdm(range(self.eval_episodes), desc=f"Eval in Adroit {self.task_name} Pointcloud Env",
+        for episode_idx in tqdm.tqdm(range(self.eval_episodes), desc=f"Eval in Robosuite {self.task_name} Pointcloud Env",
                                      leave=False, mininterval=self.tqdm_interval_sec):
                 
             # start rollout
@@ -129,8 +129,13 @@ class RobosuiteRunner(BaseRunner):
         videos = env.env.get_video()
         if len(videos.shape) == 5:
             videos = videos[:, 0]  # select first frame
-        videos_wandb = wandb.Video(videos, fps=self.fps, format="mp4")
-        log_data[f'sim_video_eval'] = videos_wandb
+        # videos_wandb = wandb.Video(videos, fps=self.fps, format="mp4")
+        # log_data[f'sim_video_eval'] = videos_wandb
+        
+        # Save videos
+        import imageio
+        videos = np.transpose(videos, (0, 2, 3, 1))  # -> (T, H, W, C)
+        imageio.mimwrite("rollout.mp4", videos, fps=30, codec='libx264')
 
         # clear out video buffer
         _ = env.reset()
