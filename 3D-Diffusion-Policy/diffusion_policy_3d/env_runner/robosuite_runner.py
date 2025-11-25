@@ -71,14 +71,17 @@ class RobosuiteRunner(BaseRunner):
         device = policy.device
         dtype = policy.dtype
         env = self.env
+        test_start_seed = 10000
 
         all_goal_achieved = []
         all_success_rates = []
+        videos = []
         
         for episode_idx in tqdm.tqdm(range(self.eval_episodes), desc=f"Eval in Robosuite {self.task_name} Pointcloud Env",
                                      leave=False, mininterval=self.tqdm_interval_sec):
                 
             # start rollout
+            env.seed(test_start_seed + episode_idx)
             obs = env.reset()
             policy.reset()
 
@@ -106,9 +109,9 @@ class RobosuiteRunner(BaseRunner):
                 done = np.all(done)
                 actual_step_count += 1
 
-            all_success_rates.append(info['is_success'])
+            all_success_rates.append(np.sum(info['is_success']))
             all_goal_achieved.append(num_goal_achieved)
-
+            videos.append(env.env.get_video())
 
         # log
         log_data = dict()
@@ -126,15 +129,15 @@ class RobosuiteRunner(BaseRunner):
         log_data['SR_test_L3'] = self.logger_util_test.average_of_largest_K()
         log_data['SR_test_L5'] = self.logger_util_test10.average_of_largest_K()
 
-        videos = env.env.get_video()
-        if len(videos.shape) == 5:
-            videos = videos[:, 0]  # select first frame
+        # videos = env.env.get_video()
+        # if len(videos.shape) == 5:
+        #     videos = videos[:, 0]  # select first frame
         # videos_wandb = wandb.Video(videos, fps=self.fps, format="mp4")
         # log_data[f'sim_video_eval'] = videos_wandb
         
         # Save videos
         import imageio
-        videos = np.transpose(videos, (0, 2, 3, 1))  # -> (T, H, W, C)
+        videos = np.transpose(np.concatenate(videos), (0, 2, 3, 1))  # -> (T, H, W, C)
         imageio.mimwrite("rollout.mp4", videos, fps=30, codec='libx264')
 
         # clear out video buffer
