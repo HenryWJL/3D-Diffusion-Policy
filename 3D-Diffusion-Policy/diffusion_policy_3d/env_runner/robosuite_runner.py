@@ -81,7 +81,7 @@ class RobosuiteRunner(BaseRunner):
                                      leave=False, mininterval=self.tqdm_interval_sec):
                 
             # start rollout
-            env.seed(test_start_seed + episode_idx)
+            env.env.env.seed(test_start_seed + episode_idx)
             obs = env.reset()
             policy.reset()
 
