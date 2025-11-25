@@ -346,7 +346,7 @@ class TrainDP3Workspace:
             self.epoch += 1
             del step_log
 
-    def eval(self, ckpt_path: str):
+    def eval(self, ckpt_paths):
         # load the latest checkpoint
         
         cfg = copy.deepcopy(self.cfg)
@@ -355,27 +355,33 @@ class TrainDP3Workspace:
         # if lastest_ckpt_path.is_file():
         #     cprint(f"Resuming from checkpoint {lastest_ckpt_path}", 'magenta')
         #     self.load_checkpoint(path=lastest_ckpt_path)
-        self.load_checkpoint(path=ckpt_path)
         
-        # configure env
-        env_runner: BaseRunner
-        env_runner = hydra.utils.instantiate(
-            cfg.task.env_runner,
-            output_dir=self.output_dir)
-        assert isinstance(env_runner, BaseRunner)
-        policy = self.model
-        if cfg.training.use_ema:
-            policy = self.ema_model
-        policy.eval()
-        policy.to(torch.device(cfg.training.device))
+        if isinstance(ckpt_paths, str):
+            ckpt_paths = [ckpt_paths]
 
-        runner_log = env_runner.run(policy)
+        for ckpt_path in ckpt_paths:
+            cprint(f"Evaluating checkpoint {ckpt_path}", 'magenta')
+            self.load_checkpoint(path=ckpt_path)
+            
+            # configure env
+            env_runner: BaseRunner
+            env_runner = hydra.utils.instantiate(
+                cfg.task.env_runner,
+                output_dir=self.output_dir)
+            assert isinstance(env_runner, BaseRunner)
+            policy = self.model
+            if cfg.training.use_ema:
+                policy = self.ema_model
+            policy.eval()
+            policy.to(torch.device(cfg.training.device))
+
+            runner_log = env_runner.run(policy)
+            
         
-      
-        cprint(f"---------------- Eval Results --------------", 'magenta')
-        for key, value in runner_log.items():
-            if isinstance(value, float):
-                cprint(f"{key}: {value:.4f}", 'magenta')
+            cprint(f"---------------- Eval Results --------------", 'magenta')
+            for key, value in runner_log.items():
+                if isinstance(value, float):
+                    cprint(f"{key}: {value:.4f}", 'magenta')
         
     @property
     def output_dir(self):
