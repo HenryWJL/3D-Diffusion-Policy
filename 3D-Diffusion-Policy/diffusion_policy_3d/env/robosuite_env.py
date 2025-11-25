@@ -146,6 +146,7 @@ class RobosuiteEnv(gym.Env):
             dtype=low.dtype
         )
 
+        self._seed = None
         self.seed_state_map = {}
         self.task_completion_hold_count = -1
 
@@ -195,14 +196,14 @@ class RobosuiteEnv(gym.Env):
                 obs[key] = raw_obs[key].copy()
         return obs
 
-    def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Dict:
+    def seed(self, seed: Optional[int] = None) -> None:
+        np.random.seed(seed)
+        self._seed = seed
+
+    def reset(self) -> Dict:
         self.task_completion_hold_count = -1
-        init_state = None
-        if options is not None:
-            init_state = options.get('init_state')
-        if init_state is not None:
-            raw_obs = self.reset_to({'states': init_state})
-        elif seed is not None:
+        if self._seed is not None:
+            seed = self._seed
             if seed in self.seed_state_map:
                 raw_obs = self.reset_to({'states': self.seed_state_map[seed]})
             else:
@@ -210,6 +211,7 @@ class RobosuiteEnv(gym.Env):
                 raw_obs = self._env.reset()
                 state = self._env.sim.get_state()
                 self.seed_state_map[seed] = state
+            self._seed = None
         else:
             raw_obs = self._env.reset()
         obs = self._extract_obs(raw_obs)
