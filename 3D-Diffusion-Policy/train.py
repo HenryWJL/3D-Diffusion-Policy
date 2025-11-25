@@ -346,15 +346,16 @@ class TrainDP3Workspace:
             self.epoch += 1
             del step_log
 
-    def eval(self):
+    def eval(self, ckpt_path: str):
         # load the latest checkpoint
         
         cfg = copy.deepcopy(self.cfg)
         
-        lastest_ckpt_path = self.get_checkpoint_path(tag="latest")
-        if lastest_ckpt_path.is_file():
-            cprint(f"Resuming from checkpoint {lastest_ckpt_path}", 'magenta')
-            self.load_checkpoint(path=lastest_ckpt_path)
+        # lastest_ckpt_path = self.get_checkpoint_path(tag="latest")
+        # if lastest_ckpt_path.is_file():
+        #     cprint(f"Resuming from checkpoint {lastest_ckpt_path}", 'magenta')
+        #     self.load_checkpoint(path=lastest_ckpt_path)
+        self.load_checkpoint(path=ckpt_path)
         
         # configure env
         env_runner: BaseRunner
@@ -366,7 +367,7 @@ class TrainDP3Workspace:
         if cfg.training.use_ema:
             policy = self.ema_model
         policy.eval()
-        policy.cuda()
+        policy.to(torch.device(cfg.training.device))
 
         runner_log = env_runner.run(policy)
         
