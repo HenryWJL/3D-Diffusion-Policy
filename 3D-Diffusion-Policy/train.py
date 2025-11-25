@@ -360,7 +360,7 @@ class TrainDP3Workspace:
             ckpt_paths = [ckpt_paths]
 
         for ckpt_path in ckpt_paths:
-            cprint(f"Evaluating checkpoint {ckpt_path}", 'magenta')
+            cprint(f"Evaluating checkpoint {ckpt_path}", 'yellow')
             self.load_checkpoint(path=ckpt_path)
             
             # configure env
