@@ -13,7 +13,7 @@ class SimpleVideoRecordingWrapper(gym.Wrapper):
         When file_path is None, don't record.
         """
         super().__init__(env)
-        
+        self.env = env
         self.mode = mode
         self.steps_per_render = steps_per_render
 
