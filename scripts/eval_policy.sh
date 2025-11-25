@@ -27,7 +27,7 @@
 #                             training.debug=$DEBUG \
 #                             # training.seed=${seed} \
 #                             training.device="mps" \
-#                             ckpt_path="checkpoints/3000.pth" \
+#                             ckpt_paths="checkpoints/3000.pth" \
 #                             # exp_name=${exp_name} \
 #                             # logging.mode=${wandb_mode} \
 #                             # checkpoint.save_ckpt=${save_ckpt}
