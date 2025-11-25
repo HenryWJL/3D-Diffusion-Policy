@@ -25,7 +25,7 @@ OmegaConf.register_new_resolver("eval", eval, replace=True)
 )
 def main(cfg):
     workspace = TrainDP3Workspace(cfg, "outputs")
-    workspace.eval(cfg.ckpt_path)
+    workspace.eval(cfg.ckpt_paths)
 
 if __name__ == "__main__":
     main()
