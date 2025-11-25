@@ -200,7 +200,7 @@ class RobosuiteEnv(gym.Env):
         np.random.seed(seed)
         self._seed = seed
 
-    def reset(self) -> Dict:
+    def reset(self, **kwargs) -> Dict:
         self.task_completion_hold_count = -1
         if self._seed is not None:
             seed = self._seed
