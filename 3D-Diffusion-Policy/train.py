@@ -359,25 +359,25 @@ class TrainDP3Workspace:
         if isinstance(ckpt_paths, str):
             ckpt_paths = [ckpt_paths]
 
+        # configure env
+        env_runner: BaseRunner
+        env_runner = hydra.utils.instantiate(
+            cfg.task.env_runner,
+            output_dir=self.output_dir)
+        assert isinstance(env_runner, BaseRunner)
+
         for ckpt_path in ckpt_paths:
             cprint(f"Evaluating checkpoint {ckpt_path}", 'yellow')
             self.load_checkpoint(path=ckpt_path)
             
-            # configure env
-            env_runner: BaseRunner
-            env_runner = hydra.utils.instantiate(
-                cfg.task.env_runner,
-                output_dir=self.output_dir)
-            assert isinstance(env_runner, BaseRunner)
-            policy = self.model
+            policy = copy.deepcopy(self.model)
             if cfg.training.use_ema:
-                policy = self.ema_model
+                policy = copy.deepcopy(self.ema_model)
             policy.eval()
             policy.to(torch.device(cfg.training.device))
 
             runner_log = env_runner.run(policy)
             
-        
             cprint(f"---------------- Eval Results --------------", 'magenta')
             for key, value in runner_log.items():
                 if isinstance(value, float):
