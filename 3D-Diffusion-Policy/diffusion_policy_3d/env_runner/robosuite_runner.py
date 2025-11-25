@@ -69,8 +69,6 @@ class RobosuiteRunner(BaseRunner):
 
     def run(self, policy: BasePolicy):
         device = policy.device
-        dtype = policy.dtype
-        env = self.env
         test_start_seed = 10000
 
         all_goal_achieved = []
@@ -81,8 +79,8 @@ class RobosuiteRunner(BaseRunner):
                                      leave=False, mininterval=self.tqdm_interval_sec):
                 
             # start rollout
-            env.env.env.seed(test_start_seed + episode_idx)
-            obs = env.reset()
+            self.env.env.env.seed(test_start_seed + episode_idx)
+            obs = self.env.reset()
             policy.reset()
 
             done = False
@@ -103,7 +101,7 @@ class RobosuiteRunner(BaseRunner):
                                             lambda x: x.detach().to('cpu').numpy())
                 action = np_action_dict['action'].squeeze(0)
                 # step env
-                obs, reward, done, info = env.step(action)
+                obs, reward, done, info = self.env.step(action)
                 # all_goal_achieved.append(info['goal_achieved']
                 num_goal_achieved += np.sum(info['is_success'])
                 done = np.all(done)
@@ -111,7 +109,7 @@ class RobosuiteRunner(BaseRunner):
 
             all_success_rates.append(np.sum(info['is_success']))
             all_goal_achieved.append(num_goal_achieved)
-            videos.append(env.env.get_video())
+            videos.append(self.env.env.get_video())
 
         # log
         log_data = dict()
@@ -141,9 +139,9 @@ class RobosuiteRunner(BaseRunner):
         imageio.mimwrite("rollout.mp4", videos, fps=30, codec='libx264')
 
         # clear out video buffer
-        _ = env.reset()
-        # clear memory
-        videos = None
-        del env
+        _ = self.env.reset()
+        # # clear memory
+        # videos = None
+        # del env
 
         return log_data
