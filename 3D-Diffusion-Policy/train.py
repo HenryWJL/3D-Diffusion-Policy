@@ -129,6 +129,7 @@ class TrainDP3Workspace:
             **cfg.dataloader
         )
         normalizer = dataset.get_normalizer()
+        normalizer.to(self.device)
 
         # configure validation dataset
         val_dataset = dataset.get_validation_dataset()
