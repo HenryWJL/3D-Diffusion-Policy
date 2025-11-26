@@ -47,7 +47,7 @@ class TrainDP3Workspace:
         # ------------------------------
         # DDP initialization
         # ------------------------------
-        import os, torch
+        import os
         print("PID", os.getpid())
         print("ENV LOCAL_RANK RANK WORLD_SIZE:",
             os.environ.get("LOCAL_RANK"),
