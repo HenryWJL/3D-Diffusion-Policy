@@ -37,6 +37,9 @@ class TrainDP3Workspace:
         self.cfg = cfg
         self._output_dir = output_dir
         self._saving_thread = None
+         # configure training state
+        self.global_step = 0
+        self.epoch = 1
         
         # set seed
         seed = cfg.training.seed
@@ -136,10 +139,6 @@ class TrainDP3Workspace:
                 cfg.ema,
                 model=self.ema_model
             )
-
-        # configure training state
-        self.global_step = 0
-        self.epoch = 1
 
     def run(self):
         cfg = copy.deepcopy(self.cfg)
