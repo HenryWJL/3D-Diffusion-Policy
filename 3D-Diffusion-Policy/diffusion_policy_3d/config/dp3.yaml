@@ -136,15 +136,15 @@ checkpoint:
   save_last_ckpt: True # this only saves when save_ckpt is True
   save_last_snapshot: False
 
-# multi_run:
-#   run_dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
-#   wandb_name_base: ${now:%Y.%m.%d-%H.%M.%S}_${name}_${task_name}
+multi_run:
+  run_dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+  wandb_name_base: ${now:%Y.%m.%d-%H.%M.%S}_${name}_${task_name}
 
 hydra:
-  # job:
-  #   override_dirname: ${name}
+  job:
+    override_dirname: ${name}
   run:
     dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
-  # sweep:
-  #   dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
-  #   subdir: ${hydra.job.num}
+  sweep:
+    dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+    subdir: ${hydra.job.num}
