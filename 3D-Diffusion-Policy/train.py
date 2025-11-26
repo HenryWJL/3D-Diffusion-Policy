@@ -47,7 +47,20 @@ class TrainDP3Workspace:
         # ------------------------------
         # DDP initialization
         # ------------------------------
+        import os, torch
+        print("PID", os.getpid())
+        print("ENV LOCAL_RANK RANK WORLD_SIZE:",
+            os.environ.get("LOCAL_RANK"),
+            os.environ.get("RANK"),
+            os.environ.get("WORLD_SIZE"))
+        print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
+        print("torch.cuda.device_count():", torch.cuda.device_count())
+        if torch.cuda.is_available():
+            print("current_device (before set):", torch.cuda.current_device(), torch.cuda.get_device_name(torch.cuda.current_device()))
+        else:
+            print("CUDA not available")
         if "LOCAL_RANK" in os.environ:
+            print("Use ddp")
             dist.init_process_group(backend="nccl")
             self.local_rank = int(os.environ["LOCAL_RANK"])
             torch.cuda.set_device(self.local_rank)
