@@ -122,7 +122,12 @@ class TrainDP3Workspace:
         else:
             train_sampler = None
 
-        train_dataloader = DataLoader(dataset=dataset, sampler=train_sampler, **cfg.dataloader)
+        cfg.dataloader.shuffle = (train_sampler is None)
+        train_dataloader = DataLoader(
+            dataset=dataset,
+            sampler=train_sampler,
+            **cfg.dataloader
+        )
         normalizer = dataset.get_normalizer()
 
         # configure validation dataset
