@@ -161,32 +161,32 @@ class TrainDP3Workspace:
         
         RUN_VALIDATION = False # reduce time cost
 
-        if self.local_rank == 0:
-            # configure env
-            env_runner: BaseRunner
-            env_runner = hydra.utils.instantiate(
-                cfg.task.env_runner,
-                output_dir=self.output_dir)
+        # if self.local_rank == 0:
+        #     # configure env
+        #     env_runner: BaseRunner
+        #     env_runner = hydra.utils.instantiate(
+        #         cfg.task.env_runner,
+        #         output_dir=self.output_dir)
 
-            if env_runner is not None:
-                assert isinstance(env_runner, BaseRunner)
+        #     if env_runner is not None:
+        #         assert isinstance(env_runner, BaseRunner)
             
-            # configure logging
-            cfg.logging.name = str(cfg.logging.name)
-            cprint("-----------------------------", "yellow")
-            cprint(f"[WandB] group: {cfg.logging.group}", "yellow")
-            cprint(f"[WandB] name: {cfg.logging.name}", "yellow")
-            cprint("-----------------------------", "yellow")
-            wandb_run = wandb.init(
-                dir=str(self.output_dir),
-                config=OmegaConf.to_container(cfg, resolve=True),
-                **cfg.logging
-            )
-            wandb.config.update(
-                {
-                    "output_dir": self.output_dir,
-                }
-            )
+        #     # configure logging
+        #     cfg.logging.name = str(cfg.logging.name)
+        #     cprint("-----------------------------", "yellow")
+        #     cprint(f"[WandB] group: {cfg.logging.group}", "yellow")
+        #     cprint(f"[WandB] name: {cfg.logging.name}", "yellow")
+        #     cprint("-----------------------------", "yellow")
+        #     wandb_run = wandb.init(
+        #         dir=str(self.output_dir),
+        #         config=OmegaConf.to_container(cfg, resolve=True),
+        #         **cfg.logging
+        #     )
+        #     wandb.config.update(
+        #         {
+        #             "output_dir": self.output_dir,
+        #         }
+        #     )
 
         # # configure checkpoint
         # topk_manager = TopKCheckpointManager(
@@ -258,9 +258,9 @@ class TrainDP3Workspace:
 
                     is_last_batch = (batch_idx == (len(self.train_dataloader)-1))
                     if not is_last_batch:
-                        if self.local_rank == 0:
-                            # log of last step is combined with validation and rollout
-                            wandb_run.log(step_log, step=self.global_step)
+                        # if self.local_rank == 0:
+                        #     # log of last step is combined with validation and rollout
+                        #     wandb_run.log(step_log, step=self.global_step)
                         self.global_step += 1
 
                     if (cfg.training.max_train_steps is not None) \
@@ -276,15 +276,15 @@ class TrainDP3Workspace:
             if self.local_rank == 0:
                 policy = self.ema_model if cfg.training.use_ema else model_ref
                 policy.eval()
-                # run rollout
-                if (self.epoch % cfg.training.rollout_every) == 0 and RUN_ROLLOUT and env_runner is not None:
-                    t3 = time.time()
-                    # runner_log = env_runner.run(policy, dataset=dataset)
-                    runner_log = env_runner.run(policy)
-                    t4 = time.time()
-                    # print(f"rollout time: {t4-t3:.3f}")
-                    # log all
-                    step_log.update(runner_log)
+                # # run rollout
+                # if (self.epoch % cfg.training.rollout_every) == 0 and RUN_ROLLOUT and env_runner is not None:
+                #     t3 = time.time()
+                #     # runner_log = env_runner.run(policy, dataset=dataset)
+                #     runner_log = env_runner.run(policy)
+                #     t4 = time.time()
+                #     # print(f"rollout time: {t4-t3:.3f}")
+                #     # log all
+                #     step_log.update(runner_log)
 
                 # run validation
                 if (self.epoch % cfg.training.val_every) == 0 and RUN_VALIDATION:
@@ -323,8 +323,8 @@ class TrainDP3Workspace:
                         del pred_action
                         del mse
 
-                if env_runner is None:
-                    step_log['test_mean_score'] = - train_loss
+                # if env_runner is None:
+                #     step_log['test_mean_score'] = - train_loss
                     
                 # checkpoint
                 if (self.epoch % cfg.training.checkpoint_every) == 0 and cfg.checkpoint.save_ckpt:
@@ -365,7 +365,7 @@ class TrainDP3Workspace:
 
                 # end of epoch
                 # log of last step is combined with validation and rollout
-                wandb_run.log(step_log, step=self.global_step)
+                # wandb_run.log(step_log, step=self.global_step)
 
             self.global_step += 1
             self.epoch += 1
