@@ -47,20 +47,7 @@ class TrainDP3Workspace:
         # ------------------------------
         # DDP initialization
         # ------------------------------
-        import os
-        print("PID", os.getpid())
-        print("ENV LOCAL_RANK RANK WORLD_SIZE:",
-            os.environ.get("LOCAL_RANK"),
-            os.environ.get("RANK"),
-            os.environ.get("WORLD_SIZE"))
-        print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
-        print("torch.cuda.device_count():", torch.cuda.device_count())
-        if torch.cuda.is_available():
-            print("current_device (before set):", torch.cuda.current_device(), torch.cuda.get_device_name(torch.cuda.current_device()))
-        else:
-            print("CUDA not available")
         if "LOCAL_RANK" in os.environ:
-            print("Use ddp")
             dist.init_process_group(backend="nccl")
             self.local_rank = int(os.environ["LOCAL_RANK"])
             torch.cuda.set_device(self.local_rank)
@@ -87,7 +74,67 @@ class TrainDP3Workspace:
                 self.model,
                 device_ids=[self.local_rank],
                 output_device=self.local_rank,
-                find_unused_parameters=False
+                find_unused_parameters=True
+            )
+
+        # configure dataset
+        dataset: BaseDataset
+        dataset = hydra.utils.instantiate(cfg.task.dataset)
+        assert isinstance(dataset, BaseDataset), print(f"dataset must be BaseDataset, got {type(dataset)}")
+        normalizer = dataset.get_normalizer()
+        normalizer.to(self.device)
+
+        # Use DistributedSampler if distributed
+        if self.is_distributed:
+            train_sampler = DistributedSampler(dataset)
+        else:
+            train_sampler = None
+
+        cfg.dataloader.shuffle = (train_sampler is None)
+        self.train_dataloader = DataLoader(
+            dataset=dataset,
+            sampler=train_sampler,
+            **cfg.dataloader
+        )
+
+        # configure validation dataset
+        val_dataset = dataset.get_validation_dataset()
+        self.val_dataloader = DataLoader(val_dataset, **cfg.val_dataloader)
+
+        self.model.module.set_normalizer(normalizer) if self.is_distributed else self.model.set_normalizer(normalizer)
+        # ------------------------------
+        # Optimizer, LR scheduler, EMA
+        # ------------------------------
+        self.optimizer = hydra.utils.instantiate(
+            cfg.optimizer, params=self.model.parameters())
+        optimizer_to(self.optimizer, self.device)
+
+        # configure lr scheduler
+        self.lr_scheduler = get_scheduler(
+            cfg.training.lr_scheduler,
+            optimizer=self.optimizer,
+            num_warmup_steps=cfg.training.lr_warmup_steps,
+            num_training_steps=(
+                len(self.train_dataloader) * cfg.training.num_epochs) \
+                    // cfg.training.gradient_accumulate_every,
+            # pytorch assumes stepping LRScheduler every epoch
+            # however huggingface diffusers steps it every batch
+            last_epoch=self.global_step-1
+        )
+
+        # configure ema
+        self.ema_model: DP3 = None
+        if cfg.training.use_ema:
+            model_ref = self.model.module if self.is_distributed else self.model
+            self.ema_model = copy.deepcopy(model_ref)
+            self.ema_model.to(self.device)
+            self.ema_model.set_normalizer(normalizer)
+
+        self.ema: EMAModel = None
+        if cfg.training.use_ema:
+            self.ema = hydra.utils.instantiate(
+                cfg.ema,
+                model=self.ema_model
             )
 
         # configure training state
@@ -115,68 +162,6 @@ class TrainDP3Workspace:
         
         RUN_VALIDATION = False # reduce time cost
 
-        # configure dataset
-        dataset: BaseDataset
-        dataset = hydra.utils.instantiate(cfg.task.dataset)
-        assert isinstance(dataset, BaseDataset), print(f"dataset must be BaseDataset, got {type(dataset)}")
-
-        # Use DistributedSampler if distributed
-        if self.is_distributed:
-            train_sampler = DistributedSampler(dataset)
-        else:
-            train_sampler = None
-
-        cfg.dataloader.shuffle = (train_sampler is None)
-        train_dataloader = DataLoader(
-            dataset=dataset,
-            sampler=train_sampler,
-            **cfg.dataloader
-        )
-        normalizer = dataset.get_normalizer()
-        normalizer.to(self.device)
-
-        # configure validation dataset
-        val_dataset = dataset.get_validation_dataset()
-        val_dataloader = DataLoader(val_dataset, **cfg.val_dataloader)
-
-        self.model.module.set_normalizer(normalizer) if self.is_distributed else self.model.set_normalizer(normalizer)
-        # ------------------------------
-        # Optimizer, LR scheduler, EMA
-        # ------------------------------
-        self.optimizer = hydra.utils.instantiate(
-            cfg.optimizer, params=self.model.parameters())
-        optimizer_to(self.optimizer, self.device)
-
-        # configure lr scheduler
-        lr_scheduler = get_scheduler(
-            cfg.training.lr_scheduler,
-            optimizer=self.optimizer,
-            num_warmup_steps=cfg.training.lr_warmup_steps,
-            num_training_steps=(
-                len(train_dataloader) * cfg.training.num_epochs) \
-                    // cfg.training.gradient_accumulate_every,
-            # pytorch assumes stepping LRScheduler every epoch
-            # however huggingface diffusers steps it every batch
-            last_epoch=self.global_step-1
-        )
-
-        # configure ema
-        self.ema_model: DP3 = None
-        if cfg.training.use_ema:
-            model_ref = self.model.module if self.is_distributed else self.model
-            try:
-                self.ema_model = copy.deepcopy(model_ref)
-            except: # minkowski engine could not be copied. recreate it
-                self.ema_model = hydra.utils.instantiate(cfg.policy)
-            self.ema_model.set_normalizer(normalizer)
-        self.ema_model.to(self.device)
-
-        ema: EMAModel = None
-        if cfg.training.use_ema:
-            ema = hydra.utils.instantiate(
-                cfg.ema,
-                model=self.ema_model)
-            
         if self.local_rank == 0:
             # configure env
             env_runner: BaseRunner
@@ -219,7 +204,7 @@ class TrainDP3Workspace:
             step_log = dict()
             # ========= train for this epoch ==========
             train_losses = list()
-            with tqdm.tqdm(train_dataloader, desc=f"Training epoch {self.epoch}", 
+            with tqdm.tqdm(self.train_dataloader, desc=f"Training epoch {self.epoch}", 
                     leave=False, mininterval=cfg.training.tqdm_interval_sec) as tepoch:
                 
                 model_ref = self.model.module if self.is_distributed else self.model
@@ -244,11 +229,11 @@ class TrainDP3Workspace:
                     if self.global_step % cfg.training.gradient_accumulate_every == 0:
                         self.optimizer.step()
                         self.optimizer.zero_grad()
-                        lr_scheduler.step()
+                        self.lr_scheduler.step()
                     t1_3 = time.time()
                     # update ema
                     if cfg.training.use_ema:
-                        ema.step(model_ref)
+                        self.ema.step(model_ref)
                     t1_4 = time.time()
 
                     # logging
@@ -259,7 +244,7 @@ class TrainDP3Workspace:
                         'train_loss': raw_loss_cpu,
                         'global_step': self.global_step,
                         'epoch': self.epoch,
-                        'lr': lr_scheduler.get_last_lr()[0]
+                        'lr': self.lr_scheduler.get_last_lr()[0]
                     }
                     t1_5 = time.time()
                     step_log.update(loss_dict)
@@ -272,7 +257,7 @@ class TrainDP3Workspace:
                         print(f" update ema time: {t1_4-t1_3:.3f}")
                         print(f" logging time: {t1_5-t1_4:.3f}")
 
-                    is_last_batch = (batch_idx == (len(train_dataloader)-1))
+                    is_last_batch = (batch_idx == (len(self.train_dataloader)-1))
                     if not is_last_batch:
                         if self.local_rank == 0:
                             # log of last step is combined with validation and rollout
@@ -306,7 +291,7 @@ class TrainDP3Workspace:
                 if (self.epoch % cfg.training.val_every) == 0 and RUN_VALIDATION:
                     with torch.no_grad():
                         val_losses = list()
-                        with tqdm.tqdm(val_dataloader, desc=f"Validation epoch {self.epoch}", 
+                        with tqdm.tqdm(self.val_dataloader, desc=f"Validation epoch {self.epoch}", 
                                 leave=False, mininterval=cfg.training.tqdm_interval_sec) as tepoch:
                             for batch_idx, batch in enumerate(tepoch):
                                 batch = dict_apply(batch, lambda x: x.to(self.device, non_blocking=True))
@@ -624,7 +609,7 @@ class TrainDP3Workspace:
 #         dataset = hydra.utils.instantiate(cfg.task.dataset)
 
 #         assert isinstance(dataset, BaseDataset), print(f"dataset must be BaseDataset, got {type(dataset)}")
-#         train_dataloader = DataLoader(dataset, **cfg.dataloader)
+#         self.train_dataloader = DataLoader(dataset, **cfg.dataloader)
 #         normalizer = dataset.get_normalizer()
 
 #         # configure validation dataset
@@ -641,7 +626,7 @@ class TrainDP3Workspace:
 #             optimizer=self.optimizer,
 #             num_warmup_steps=cfg.training.lr_warmup_steps,
 #             num_training_steps=(
-#                 len(train_dataloader) * cfg.training.num_epochs) \
+#                 len(self.train_dataloader) * cfg.training.num_epochs) \
 #                     // cfg.training.gradient_accumulate_every,
 #             # pytorch assumes stepping LRScheduler every epoch
 #             # however huggingface diffusers steps it every batch
@@ -704,7 +689,7 @@ class TrainDP3Workspace:
 #             step_log = dict()
 #             # ========= train for this epoch ==========
 #             train_losses = list()
-#             with tqdm.tqdm(train_dataloader, desc=f"Training epoch {self.epoch}", 
+#             with tqdm.tqdm(self.train_dataloader, desc=f"Training epoch {self.epoch}", 
 #                     leave=False, mininterval=cfg.training.tqdm_interval_sec) as tepoch:
 #                 for batch_idx, batch in enumerate(tepoch):
 #                     t1 = time.time()
@@ -752,7 +737,7 @@ class TrainDP3Workspace:
 #                         print(f" update ema time: {t1_4-t1_3:.3f}")
 #                         print(f" logging time: {t1_5-t1_4:.3f}")
 
-#                     is_last_batch = (batch_idx == (len(train_dataloader)-1))
+#                     is_last_batch = (batch_idx == (len(self.train_dataloader)-1))
 #                     if not is_last_batch:
 #                         # log of last step is combined with validation and rollout
 #                         wandb_run.log(step_log, step=self.global_step)
