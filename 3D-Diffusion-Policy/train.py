@@ -106,9 +106,6 @@ class TrainDP3Workspace:
             cfg.optimizer, params=self.model.parameters())
         optimizer_to(self.optimizer, self.device)
 
-        self.epoch = 600
-        self.global_step = len(self.train_dataloader) * 600
-
         # configure lr scheduler
         self.lr_scheduler = get_scheduler(
             cfg.training.lr_scheduler,
