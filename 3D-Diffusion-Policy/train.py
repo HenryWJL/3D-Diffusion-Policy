@@ -443,6 +443,8 @@ class TrainDP3Workspace:
             if hasattr(value, 'state_dict') and hasattr(value, 'load_state_dict'):
                 # modules, optimizers and samplers etc
                 if key not in exclude_keys:
+                    if isinstance(value, DDP):
+                        value = value.module
                     if use_thread:
                         payload['state_dicts'][key] = _copy_to_cpu(value.state_dict())
                     else:
