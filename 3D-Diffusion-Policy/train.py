@@ -65,12 +65,6 @@ class TrainDP3Workspace:
         self.model: DP3 = hydra.utils.instantiate(cfg.policy)
         self.model.to(self.device)
 
-        # resume training
-        if cfg.training.resume:
-            ckpt_path = ""
-            if os.path.isfile(ckpt_path):
-                self.load_checkpoint(path=ckpt_path)
-
         # Wrap model with DDP
         if self.is_distributed:
             self.model = DDP(
@@ -112,6 +106,9 @@ class TrainDP3Workspace:
             cfg.optimizer, params=self.model.parameters())
         optimizer_to(self.optimizer, self.device)
 
+        self.epoch = 600
+        self.global_step = len(self.train_dataloader) * 600
+
         # configure lr scheduler
         self.lr_scheduler = get_scheduler(
             cfg.training.lr_scheduler,
@@ -139,6 +136,12 @@ class TrainDP3Workspace:
                 cfg.ema,
                 model=self.ema_model
             )
+
+        # resume training
+        if cfg.training.resume:
+            ckpt_path = cfg.ckpt_paths
+            if os.path.isfile(ckpt_path):
+                self.load_checkpoint(path=ckpt_path)
 
     def run(self):
         cfg = copy.deepcopy(self.cfg)
@@ -199,7 +202,7 @@ class TrainDP3Workspace:
 
         # training loop
         log_path = os.path.join(self.output_dir, 'logs.json.txt')
-        for local_epoch_idx in range(cfg.training.num_epochs):
+        for local_epoch_idx in range(self.epoch - 1, cfg.training.num_epochs):
             step_log = dict()
             # ========= train for this epoch ==========
             train_losses = list()
