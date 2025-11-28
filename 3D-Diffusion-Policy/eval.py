@@ -100,8 +100,8 @@ class EvalDP3Workspace:
 
         for key, value in payload['state_dicts'].items():
             if key not in exclude_keys:
-                if key == 'model':  # DDP will prepend 'module.' to all keys, now we remove it
-                    value = {k[len("module."):]: v for k, v in value.items() if k.startswith("module.")}
+                # if key == 'model':  # DDP will prepend 'module.' to all keys, now we remove it
+                #     value = {k[len("module."):]: v for k, v in value.items() if k.startswith("module.")}
                 if key in  self.__dict__:
                     self.__dict__[key].load_state_dict(value, **kwargs)
         for key in include_keys:
