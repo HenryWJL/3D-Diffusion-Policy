@@ -380,7 +380,10 @@ class TrainDP3Workspace:
             self.epoch += 1
             del step_log
         
-        # Upload to HuggingFace Hub
+        if self.is_distributed:    
+            dist.destroy_process_group()
+
+        # Upload checkpoints to HuggingFace Hub
         from huggingface_hub import HfApi
         api = HfApi()
         repo_id = "HenryWJL/dp3"
@@ -392,10 +395,7 @@ class TrainDP3Workspace:
                 repo_type="model",
                 commit_message="Add checkpoints"
             )
-
-        if self.is_distributed:    
-            dist.destroy_process_group()
-        
+ 
     @property
     def output_dir(self):
         output_dir = self._output_dir
