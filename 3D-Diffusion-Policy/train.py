@@ -215,7 +215,6 @@ class TrainDP3Workspace:
 
         # training loop
         log_path = os.path.join(self.output_dir, 'logs.json.txt')
-        ckpt_paths = []
         for local_epoch_idx in range(self.epoch - 1, cfg.training.num_epochs):
             if self.is_distributed:
                 try:
@@ -351,7 +350,7 @@ class TrainDP3Workspace:
                 if (self.epoch % cfg.training.checkpoint_every) == 0 and cfg.checkpoint.save_ckpt:
                     # checkpointing
                     if cfg.checkpoint.save_last_ckpt:
-                        ckpt_paths.append(self.save_checkpoint(path=f"checkpoints/{self.epoch}.pth"))
+                        self.save_checkpoint()
                     if cfg.checkpoint.save_last_snapshot:
                         self.save_snapshot()
 
@@ -369,6 +368,19 @@ class TrainDP3Workspace:
                     # if topk_ckpt_path is not None:
                     #     self.save_checkpoint(path=topk_ckpt_path)
 
+                    # Upload checkpoints to HuggingFace Hub
+                    from huggingface_hub import HfApi
+                    api = HfApi()
+                    repo_id = "HenryWJL/dp3"
+                    ckpt_path = self.get_checkpoint_path()
+                    api.upload_file(
+                        path_or_fileobj=ckpt_path,
+                        path_in_repo=f"{cfg.task_name}/{self.epoch}.pth",
+                        repo_id=repo_id,
+                        repo_type="model",
+                        commit_message="Add checkpoints"
+                    )
+
                 # ========= eval end for this epoch ==========
                 policy.train()
 
@@ -382,19 +394,6 @@ class TrainDP3Workspace:
         
         if self.is_distributed:    
             dist.destroy_process_group()
-
-        # Upload checkpoints to HuggingFace Hub
-        from huggingface_hub import HfApi
-        api = HfApi()
-        repo_id = "HenryWJL/dp3"
-        for ckpt_path in ckpt_paths:
-            api.upload_file(
-                path_or_fileobj=ckpt_path,
-                path_in_repo=f"{cfg.task_name}/{str(pathlib.Path(ckpt_path).name)}",
-                repo_id=repo_id,
-                repo_type="model",
-                commit_message="Add checkpoints"
-            )
  
     @property
     def output_dir(self):
