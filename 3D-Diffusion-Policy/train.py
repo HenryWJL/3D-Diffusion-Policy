@@ -215,10 +215,10 @@ class TrainDP3Workspace:
 
         # training loop
         log_path = os.path.join(self.output_dir, 'logs.json.txt')
-        for local_epoch_idx in range(self.epoch - 1, cfg.training.num_epochs):
+        for local_epoch_idx in range(cfg.training.num_epochs):
             if self.is_distributed:
                 try:
-                    self.train_dataloader.sampler.set_epoch(self.epoch)
+                    self.train_dataloader.sampler.set_epoch(local_epoch_idx)
                 except Exception:
                     pass
             step_log = dict()
@@ -294,8 +294,9 @@ class TrainDP3Workspace:
 
             # ========= eval for this epoch ==========
             if self.local_rank == 0:
-                policy = self.ema_model if cfg.training.use_ema else model_ref
-                policy.eval()
+                # policy = self.ema_model if cfg.training.use_ema else model_ref
+                # policy.eval()
+
                 # # run rollout
                 # if (self.epoch % cfg.training.rollout_every) == 0 and RUN_ROLLOUT and env_runner is not None:
                 #     t3 = time.time()
@@ -306,42 +307,42 @@ class TrainDP3Workspace:
                 #     # log all
                 #     step_log.update(runner_log)
 
-                # run validation
-                if (self.epoch % cfg.training.val_every) == 0 and RUN_VALIDATION:
-                    with torch.no_grad():
-                        val_losses = list()
-                        with tqdm.tqdm(self.val_dataloader, desc=f"Validation epoch {self.epoch}", 
-                                leave=False, mininterval=cfg.training.tqdm_interval_sec) as tepoch:
-                            for batch_idx, batch in enumerate(tepoch):
-                                batch = dict_apply(batch, lambda x: x.to(self.device, non_blocking=True))
-                                loss, loss_dict = self.model.compute_loss(batch)
-                                val_losses.append(loss)
-                                if (cfg.training.max_val_steps is not None) \
-                                    and batch_idx >= (cfg.training.max_val_steps-1):
-                                    break
-                        if len(val_losses) > 0:
-                            val_loss = torch.mean(torch.tensor(val_losses)).item()
-                            # log epoch average validation loss
-                            step_log['val_loss'] = val_loss
+                # # run validation
+                # if (self.epoch % cfg.training.val_every) == 0 and RUN_VALIDATION:
+                #     with torch.no_grad():
+                #         val_losses = list()
+                #         with tqdm.tqdm(self.val_dataloader, desc=f"Validation epoch {self.epoch}", 
+                #                 leave=False, mininterval=cfg.training.tqdm_interval_sec) as tepoch:
+                #             for batch_idx, batch in enumerate(tepoch):
+                #                 batch = dict_apply(batch, lambda x: x.to(self.device, non_blocking=True))
+                #                 loss, loss_dict = self.model.compute_loss(batch)
+                #                 val_losses.append(loss)
+                #                 if (cfg.training.max_val_steps is not None) \
+                #                     and batch_idx >= (cfg.training.max_val_steps-1):
+                #                     break
+                #         if len(val_losses) > 0:
+                #             val_loss = torch.mean(torch.tensor(val_losses)).item()
+                #             # log epoch average validation loss
+                #             step_log['val_loss'] = val_loss
 
-                # run diffusion sampling on a training batch
-                if (self.epoch % cfg.training.sample_every) == 0:
-                    with torch.no_grad():
-                        # sample trajectory from training set, and evaluate difference
-                        batch = dict_apply(train_sampling_batch, lambda x: x.to(self.device, non_blocking=True))
-                        obs_dict = batch['obs']
-                        gt_action = batch['action']
+                # # run diffusion sampling on a training batch
+                # if (self.epoch % cfg.training.sample_every) == 0:
+                #     with torch.no_grad():
+                #         # sample trajectory from training set, and evaluate difference
+                #         batch = dict_apply(train_sampling_batch, lambda x: x.to(self.device, non_blocking=True))
+                #         obs_dict = batch['obs']
+                #         gt_action = batch['action']
                         
-                        result = policy.predict_action(obs_dict)
-                        pred_action = result['action_pred']
-                        mse = torch.nn.functional.mse_loss(pred_action, gt_action)
-                        step_log['train_action_mse_error'] = mse.item()
-                        del batch
-                        del obs_dict
-                        del gt_action
-                        del result
-                        del pred_action
-                        del mse
+                #         result = policy.predict_action(obs_dict)
+                #         pred_action = result['action_pred']
+                #         mse = torch.nn.functional.mse_loss(pred_action, gt_action)
+                #         step_log['train_action_mse_error'] = mse.item()
+                #         del batch
+                #         del obs_dict
+                #         del gt_action
+                #         del result
+                #         del pred_action
+                #         del mse
 
                 # if env_runner is None:
                 #     step_log['test_mean_score'] = - train_loss
@@ -382,7 +383,7 @@ class TrainDP3Workspace:
                     )
 
                 # ========= eval end for this epoch ==========
-                policy.train()
+                # policy.train()
 
                 # end of epoch
                 # log of last step is combined with validation and rollout
