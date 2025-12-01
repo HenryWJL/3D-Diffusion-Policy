@@ -376,7 +376,7 @@ class TrainDP3Workspace:
                     ckpt_path = self.get_checkpoint_path()
                     api.upload_file(
                         path_or_fileobj=ckpt_path,
-                        path_in_repo=f"{cfg.task_name}/{self.epoch}.pth",
+                        path_in_repo=f"{cfg.task_name}/epoch={self.epoch}_seed={cfg.training.seed}.pth",
                         repo_id=repo_id,
                         repo_type="model",
                         commit_message="Add checkpoints"
