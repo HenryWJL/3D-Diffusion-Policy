@@ -23,6 +23,7 @@ class RobosuiteRunner(BaseRunner):
         max_steps=200,
         n_obs_steps=8,
         n_action_steps=8,
+        abs_action=True,
         fps=10,
         crf=22,
         render_size=84,
@@ -44,6 +45,7 @@ class RobosuiteRunner(BaseRunner):
                         robots="Panda",
                         camera_names=list(bounding_boxes.keys()),
                         bounding_boxes=bounding_boxes,
+                        delta_action=not abs_action,
                         render_image_size=(render_size, render_size)
                     ),
                     steps_per_render=steps_per_render
