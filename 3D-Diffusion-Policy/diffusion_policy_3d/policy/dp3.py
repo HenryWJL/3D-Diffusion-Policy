@@ -257,7 +257,10 @@ class DP3(BasePolicy):
         # normalize input
 
         nobs = self.normalizer.normalize(batch['obs'])
+        for key, val in nobs.items():
+            nobs[key] = val.float()
         nactions = self.normalizer['action'].normalize(batch['action'])
+        nactions = nactions.float()
         
         batch_size = nactions.shape[0]
         horizon = nactions.shape[1]
@@ -265,11 +268,9 @@ class DP3(BasePolicy):
         # handle different ways of passing observation
         local_cond = None
         global_cond = None
-        trajectory = nactions.float()
+        trajectory = nactions
         cond_data = trajectory
-        
-       
-        
+         
         if self.obs_as_global_cond:
             # reshape B, T, ... to B*T
             this_nobs = dict_apply(nobs, 
@@ -290,7 +291,6 @@ class DP3(BasePolicy):
             nobs_features = nobs_features.reshape(batch_size, horizon, -1)
             cond_data = torch.cat([nactions, nobs_features], dim=-1)
             trajectory = cond_data.detach()
-
 
         # generate impainting mask
         condition_mask = self.mask_generator(trajectory.shape)
