@@ -20,6 +20,7 @@ class RobosuiteDataset(BaseDataset):
             zarr_path,
             shape_meta, 
             horizon=1,
+            abs_action=True,
             pad_before=0,
             pad_after=0,
             seed=42,
@@ -50,6 +51,7 @@ class RobosuiteDataset(BaseDataset):
             episode_mask=train_mask)
         self.train_mask = train_mask
         self.horizon = horizon
+        self.abs_action = abs_action
         self.pad_before = pad_before
         self.pad_after = pad_after
 
@@ -78,7 +80,11 @@ class RobosuiteDataset(BaseDataset):
         normalizer = LinearNormalizer()
         # action
         stat = array_to_stats(self.replay_buffer['action'])
-        normalizer['action'] = robomimic_abs_action_only_normalizer_from_stat(stat)
+        if self.abs_action:
+            this_normalizer = robomimic_abs_action_only_normalizer_from_stat(stat)
+        else:
+            this_normalizer = get_identity_normalizer_from_stat(stat)
+        normalizer['action'] = this_normalizer
         # obs
         for key in self.shape_meta['obs'].keys():
             stat = array_to_stats(self.replay_buffer[key])
