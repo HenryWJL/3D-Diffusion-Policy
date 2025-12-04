@@ -93,7 +93,8 @@ class TrainDP3Workspace:
         # ------------------------------
         # Configure dataset
         # ------------------------------
-        dataset: BaseDataset = hydra.utils.instantiate(cfg.task.dataset)
+        print(cfg.task.dataset)
+        dataset = hydra.utils.instantiate(cfg.task.dataset)
         normalizer = dataset.get_normalizer()
         normalizer.to(self.device)
         # Use DistributedSampler if distributed
