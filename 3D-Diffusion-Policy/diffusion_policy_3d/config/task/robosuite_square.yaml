@@ -20,7 +20,7 @@ shape_meta: &shape_meta
   action:
     shape: [10]
 
-abs_action: &abs_action True
+abs_action: &abs_action true
 
 env_runner:
   _target_: diffusion_policy_3d.env_runner.robosuite_runner.RobosuiteRunner
@@ -29,7 +29,7 @@ env_runner:
   max_steps: 300
   n_obs_steps: ${n_obs_steps}
   n_action_steps: ${n_action_steps}
-  abs_action: ${abs_action}
+  abs_action: *abs_action
   fps: 10
   task_name: NutAssemblySquare
   render_size: 256
@@ -46,7 +46,7 @@ dataset:
   zarr_path: data/robosuite_square.zarr
   shape_meta: ${shape_meta}
   horizon: ${horizon}
-  abs_action: ${abs_action}
+  abs_action: *abs_action
   pad_before: ${eval:'${n_obs_steps}-1'}
   pad_after: ${eval:'${n_action_steps}-1'}
   seed: 42
