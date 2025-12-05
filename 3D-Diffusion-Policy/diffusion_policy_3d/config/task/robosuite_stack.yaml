@@ -31,7 +31,7 @@ env_runner:
   n_action_steps: ${n_action_steps}
   abs_action: *abs_action
   fps: 10
-  task_name: Lift
+  task_name: Stack
   render_size: 256
   bounding_boxes:
     frontview:
