@@ -173,8 +173,7 @@ def sample_and_group(
     group_neighbors: Optional[int] = 10
 ) -> Union[Tuple[torch.Tensor, torch.Tensor], None]:
     """
-    Sample features (query) in pc_mask==1 regions and look for neighbor
-    features (key) in pc_mask==0 regions
+    Sample features in pc_mask==1 regions and look for neighbors in pc_mask==0 regions
     """
     query_mask = pc_mask
     key_mask = None if pc_mask is None else ~pc_mask
@@ -195,11 +194,11 @@ def sample_and_group(
             return ret
         query_idx, batch_idx_query, point_idx_neighbor = ret
         pc_feat_query = pc_feat_query[query_idx]
-        pc_feat_key = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
+        pc_feat_neighbor = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
     else:
         raise ValueError(f"Unsupported grouping method {group_method}! Must be either 'knn' or 'ball_query'.")
     
-    return pc_feat_query, pc_feat_key
+    return pc_feat_query, pc_feat_neighbor
 
 
 def visualize_in_original_pc(
