@@ -170,10 +170,15 @@ def sample_and_group(
     sample_method: Literal["random", "fps"] = "fps",
     sample_ratio: Optional[float] = 0.3,
     group_method: Literal["knn", "ball_query"] = "ball_query",
-    group_neighbors: Optional[int] = 10
+    num_neighbors: Optional[int] = 10
 ) -> Union[Tuple[torch.Tensor, torch.Tensor], None]:
     """
     Sample features in pc_mask==1 regions and look for neighbors in pc_mask==0 regions
+
+    Returns:
+        batch_idx_query: batch indices of @pc_feat_query (Shape: [M',]).
+        pc_feat_query: feature query (Shape: [M', D]).
+        pc_feat_neighbor: neighbor features of @pc_feat_query (Shape: [M', @num_neighbors, D]).
     """
     query_mask = pc_mask
     key_mask = None if pc_mask is None else ~pc_mask
@@ -189,7 +194,7 @@ def sample_and_group(
     if group_method == "knn":
         pass
     elif group_method == "ball_query":
-        ret = ball_query(pc_xyz_query, pc_xyz, batch_idx, key_mask, max_num_neighbors=group_neighbors)
+        ret = ball_query(pc_xyz_query, pc_xyz, batch_idx, key_mask, max_num_neighbors=num_neighbors)
         if ret is None:
             return ret
         query_idx, batch_idx_query, point_idx_neighbor = ret
@@ -198,7 +203,7 @@ def sample_and_group(
     else:
         raise ValueError(f"Unsupported grouping method {group_method}! Must be either 'knn' or 'ball_query'.")
     
-    return pc_feat_query, pc_feat_neighbor
+    return batch_idx_query, pc_feat_query, pc_feat_neighbor
 
 
 def visualize_in_original_pc(
@@ -256,12 +261,13 @@ if __name__ == "__main__":
     import zarr
     with zarr.open("/Users/wangjl/Desktop/Projects/sim_demo_collector/demos/robosuite_stack.zarr", 'r') as f:
         frame_id = 700
+        batch_size = 5
         camera = "frontview"
-        pc = f[f'data/{camera}_pc'][()][[frame_id]]
-        pc_mask = f[f'data/{camera}_pc_mask'][()][[frame_id]]
+        pc = f[f'data/{camera}_pc'][()][frame_id: frame_id + batch_size]
+        pc_mask = f[f'data/{camera}_pc_mask'][()][frame_id: frame_id + batch_size]
         pc = torch.from_numpy(pc).float()
         pc_mask = torch.from_numpy(pc_mask).bool()
 
-    pc_query, neighbors = sample_and_group(pc, pc, pc_mask, group_neighbors=5)
-    visualize_in_original_pc(pc, pc_query, neighbors, frame_id=0)
+    batch_idx, pc_query, neighbors = sample_and_group(pc, pc, pc_mask, num_neighbors=5)
+    # visualize_in_original_pc(pc, pc_query, neighbors, frame_id=0)
     
