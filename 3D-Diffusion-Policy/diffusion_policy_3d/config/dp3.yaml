@@ -12,6 +12,7 @@ ckpt_paths: ""
   # - checkpoints/1800.pth
   # - checkpoints/2400.pth
   # - checkpoints/3000.pth
+hf_repo_id: "HenryWJL/dp3"
 
 # horizon: 4
 horizon: 16
