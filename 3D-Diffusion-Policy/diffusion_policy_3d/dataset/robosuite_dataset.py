@@ -87,7 +87,10 @@ class RobosuiteDataset(BaseDataset):
         normalizer['action'] = this_normalizer
         # obs
         for key in self.shape_meta['obs'].keys():
-            stat = array_to_stats(self.replay_buffer[key])
+            if key.endswith('pc_mask'):
+                stat = array_to_stats(self.replay_buffer[key].float())
+            else:
+                stat = array_to_stats(self.replay_buffer[key])
             if key.endswith('pos'):
                 normalizer[key] = get_range_normalizer_from_stat(stat)
             elif key.endswith('quat'):
