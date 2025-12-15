@@ -371,7 +371,7 @@ class TrainDP3Workspace:
                     # Upload checkpoints to HuggingFace Hub
                     from huggingface_hub import HfApi
                     api = HfApi()
-                    repo_id = "HenryWJL/dp3"
+                    repo_id = "HenryWJL/icon_dp3"
                     ckpt_path = self.get_checkpoint_path()
                     api.upload_file(
                         path_or_fileobj=ckpt_path,
