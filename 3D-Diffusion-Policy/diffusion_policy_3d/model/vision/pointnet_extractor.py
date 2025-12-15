@@ -416,7 +416,6 @@ class IConDP3Encoder(nn.Module):
         self.point_cloud_key = [key for key in observation_space.keys() if key.endswith("pc")]
         self.point_cloud_shape = observation_space[self.point_cloud_key[0]]
         self.state_shape = [sum(observation_space[key][0] for key in self.state_key)]
-        self.pc_mask_key = [key for key in observation_space.keys() if key.endswith("pc_mask")]
         
         cprint(f"[DP3Encoder] point cloud shape: {self.point_cloud_shape}", "yellow")
         cprint(f"[DP3Encoder] state shape: {self.state_shape}", "yellow")
@@ -453,7 +452,7 @@ class IConDP3Encoder(nn.Module):
     def forward(self, observations: Dict) -> torch.Tensor:
         state = torch.cat([observations[key] for key in self.state_key], dim=-1)
         state_feat = self.state_mlp(state)  # B * 64
-        if self.pc_mask_key:
+        if self.training:
             pn_feat = []
             contrast_loss = []
             for key in self.point_cloud_key:
