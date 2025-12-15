@@ -88,7 +88,7 @@ class RobosuiteDataset(BaseDataset):
         # obs
         for key in self.shape_meta['obs'].keys():
             if key.endswith('pc_mask'):
-                stat = array_to_stats(self.replay_buffer[key].float())
+                stat = array_to_stats(self.replay_buffer[key].astype(np.float32))
             else:
                 stat = array_to_stats(self.replay_buffer[key])
             if key.endswith('pos'):
