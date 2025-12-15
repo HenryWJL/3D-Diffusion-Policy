@@ -279,6 +279,7 @@ class IConPointNetEncoderXYZ(nn.Module):
         feature: (B, N, C)
         mask: (B, N)
         """
+        mask = mask.float()
         eps = 1e-8
         if self.feat_agg_method == "mean":
             query = (feature * mask[..., None]).sum(dim=1) / (mask.sum(dim=1)[:, None] + eps)
@@ -288,7 +289,7 @@ class IConPointNetEncoderXYZ(nn.Module):
         batch_idx, pos_key, neg_key = sample_and_group(
             pc_xyz=xyz,
             pc_feat=feature,
-            pc_mask=mask,
+            pc_mask=mask.bool(),
             sample_method=self.sample_method,
             sample_ratio=self.sample_ratio,
             group_method=self.group_method,
