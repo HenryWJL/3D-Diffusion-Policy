@@ -457,6 +457,7 @@ class IConDP3Encoder(nn.Module):
             pn_feat = contrast_loss = []
             for key in self.point_cloud_key:
                 feat, loss = self.extractor[key](observations[key], observations[f'{key}_mask'])
+                print("Feature shape: ", feat.shape)
                 pn_feat.append(feat)
                 contrast_loss.append(loss)
             pn_feat = torch.cat(pn_feat, dim=-1)
