@@ -15,7 +15,6 @@ import shutil
 import time
 import threading
 from hydra.core.hydra_config import HydraConfig
-from diffusion_policy_3d.policy.dp3 import DP3
 from diffusion_policy_3d.dataset.base_dataset import BaseDataset
 from diffusion_policy_3d.env_runner.base_runner import BaseRunner
 from diffusion_policy_3d.common.checkpoint_util import TopKCheckpointManager
@@ -79,7 +78,7 @@ class TrainDP3Workspace:
         # ------------------------------
         # Configure model
         # ------------------------------
-        self.model: DP3 = hydra.utils.instantiate(cfg.policy)
+        self.model = hydra.utils.instantiate(cfg.policy)
         self.model.to(self.device)
         # Wrap model with DDP (if distributed)
         if self.is_distributed:
@@ -138,7 +137,7 @@ class TrainDP3Workspace:
         )
 
         # Configure ema
-        self.ema_model: DP3 = None
+        self.ema_model = None
         if cfg.training.use_ema:
             model_ref = self.model.module if self.is_distributed else self.model
             self.ema_model = copy.deepcopy(model_ref)
