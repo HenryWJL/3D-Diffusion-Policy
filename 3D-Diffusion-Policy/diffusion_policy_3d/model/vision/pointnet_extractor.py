@@ -430,7 +430,7 @@ class IConDP3Encoder(nn.Module):
                 backbone = PointNetEncoderXYZRGB(**pointcloud_encoder_cfg)
             else:
                 pointcloud_encoder_cfg.in_channels = 3
-                backbone = PointNetEncoderXYZ(**pointcloud_encoder_cfg)
+                backbone = IConPointNetEncoderXYZ(**pointcloud_encoder_cfg)
         else:
             raise NotImplementedError(f"pointnet_type: {pointnet_type}")
         self.extractor = nn.ModuleDict({key: copy.deepcopy(backbone) for key in self.point_cloud_key})
