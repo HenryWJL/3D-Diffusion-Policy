@@ -90,7 +90,7 @@ class RobosuiteRunner(BaseRunner):
             actual_step_count = 0
             while not done:
                 # create obs dict
-                np_obs_dict = {key: obs[key] for key in self.shape_meta['obs'].keys()}
+                np_obs_dict = {key: obs[key] for key in self.shape_meta['obs'].keys() if not key.endswith('pc_mask')}
                 # device transfer
                 obs_dict = dict_apply(np_obs_dict,
                                       lambda x: torch.from_numpy(x).unsqueeze(0).to(
