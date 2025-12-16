@@ -14,6 +14,7 @@ from termcolor import cprint
 import shutil
 import time
 import threading
+import logging
 from hydra.core.hydra_config import HydraConfig
 from diffusion_policy_3d.dataset.base_dataset import BaseDataset
 from diffusion_policy_3d.env_runner.base_runner import BaseRunner
@@ -26,7 +27,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 OmegaConf.register_new_resolver("eval", eval, replace=True)
-
+logger = logging.getLogger(__name__)
 
 class TrainDP3Workspace:
     include_keys = ['global_step', 'epoch']
@@ -267,6 +268,7 @@ class TrainDP3Workspace:
                     t1_5 = time.time()
                     step_log.update(loss_dict)
                     t2 = time.time()
+                    logger.info("Loss: ", loss_dict)
                     
                     if verbose and self.local_rank == 0:
                         print(f"total one step time: {t2-t1:.3f}")
