@@ -265,10 +265,10 @@ class TrainDP3Workspace:
                         'epoch': self.epoch,
                         'lr': self.lr_scheduler.get_last_lr()[0]
                     }
+                    logger.info("Loss: ", loss_dict)
                     t1_5 = time.time()
                     step_log.update(loss_dict)
                     t2 = time.time()
-                    logger.info("Loss: ", loss_dict)
                     
                     if verbose and self.local_rank == 0:
                         print(f"total one step time: {t2-t1:.3f}")
