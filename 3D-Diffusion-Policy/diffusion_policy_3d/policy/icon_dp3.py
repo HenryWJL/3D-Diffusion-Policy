@@ -348,7 +348,7 @@ class IConDP3(BasePolicy):
         bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
         bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
         bc_loss = bc_loss.mean()
-        coef = 1.0
+        coef = 0.1
         loss = bc_loss + coef * contrast_loss
 
         loss_dict = {
