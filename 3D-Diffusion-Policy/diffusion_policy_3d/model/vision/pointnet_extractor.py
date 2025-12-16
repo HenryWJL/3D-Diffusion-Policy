@@ -266,6 +266,12 @@ class IConPointNetEncoderXYZ(nn.Module):
             self.mlp[6].register_backward_hook(self.save_gradient)
 
         # Inter-point contrast
+        self.proj = nn.Sequential(
+            nn.Linear(out_channels, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+            nn.Linear(128, 64)
+        )
         self.feat_agg_method = icon_cfg['feat_agg_method']  # Method to aggregate features into query ("mean" or "max")
         self.sample_method = icon_cfg['sample_method']
         self.sample_ratio = icon_cfg['sample_ratio']
@@ -311,7 +317,8 @@ class IConPointNetEncoderXYZ(nn.Module):
         feature_agg = torch.max(feature, 1)[0]
         feature_agg = self.final_projection(feature_agg)
         if mask is not None:
-            loss = self.forward_loss(xyz, feature, mask)
+            feature_proj = self.proj(feature)
+            loss = self.forward_loss(xyz, feature_proj, mask)
             return feature_agg, loss
         return feature_agg
     
