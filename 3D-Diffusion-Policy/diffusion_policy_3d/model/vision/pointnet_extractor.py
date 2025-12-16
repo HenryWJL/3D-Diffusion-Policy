@@ -267,10 +267,10 @@ class IConPointNetEncoderXYZ(nn.Module):
 
         # Inter-point contrast
         self.proj = nn.Sequential(
-            nn.Linear(out_channels, 128),
-            nn.BatchNorm1d(128),
+            nn.Linear(block_channel[-1], 512),
+            nn.BatchNorm1d(512),
             nn.ReLU(inplace=True),
-            nn.Linear(128, 64)
+            nn.Linear(512, 128)
         )
         self.feat_agg_method = icon_cfg['feat_agg_method']  # Method to aggregate features into query ("mean" or "max")
         self.sample_method = icon_cfg['sample_method']
