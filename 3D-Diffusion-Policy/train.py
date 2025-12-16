@@ -265,7 +265,6 @@ class TrainDP3Workspace:
                         'epoch': self.epoch,
                         'lr': self.lr_scheduler.get_last_lr()[0]
                     }
-                    logger.info(f"Loss: {loss_dict}")
                     t1_5 = time.time()
                     step_log.update(loss_dict)
                     t2 = time.time()
