@@ -215,6 +215,7 @@ class TrainDP3Workspace:
 
         # training loop
         log_path = os.path.join(self.output_dir, 'logs.json.txt')
+        training_start_time = time.perf_counter()
         for local_epoch_idx in range(cfg.training.num_epochs):
             if self.is_distributed:
                 try:
@@ -393,6 +394,7 @@ class TrainDP3Workspace:
             self.epoch += 1
             del step_log
         
+        logger.info(f"Training time: {(time.perf_counter() - training_start_time) / 3600}h")
         if self.is_distributed:    
             dist.destroy_process_group()
  
