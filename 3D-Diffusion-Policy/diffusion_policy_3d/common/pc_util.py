@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from torch_cluster import fps, radius
+from torch_cluster import fps, knn, radius
 from typing import Optional, Tuple, Dict, Union, Literal
 
 # Adapted from https://github.com/charlesq34/pointnet/blob/master/part_seg/test.py#L82
@@ -84,6 +84,60 @@ def farthest_point_sample(
     return batch_idx, point_idx, pc_sample
 
 
+def k_nearest_neighbors(
+    pc_query: torch.Tensor,
+    pc: torch.Tensor,
+    batch_idx_query: Union[torch.Tensor, None] = None,
+    mask: Union[torch.Tensor, None] = None,
+    num_neighbors: Optional[int] = 5
+) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], None]:
+    """
+    Finds @num_neighbors neighbor points for each element in @pc_query.
+
+    Args:
+        pc_query: query points (Shape: [B, M, 3] or [N', 3]).
+        pc: searching space (Shape: [B, N, 3]).
+        batch_idx_query: the batch indices of the query points, used when pc_query.shape==[N', 3].
+            Note that the indices must match the batch size of @pc.
+        mask: point cloud mask (Shape: [B, N]). If given, neighbor points will be searched
+            in the region where mask==1.
+
+    Returns:
+        batch_idx_query: batch indices of the query points (Shape: [N',]).
+        point_idx_neighbor: point indices of the neighbor points (Shape: [N', @max_num_neighbors]).
+    """
+    batch_size, num_points = pc.shape[:2]
+    device = pc.device
+    batch_idx = torch.arange(batch_size)[:, None].expand(batch_size, num_points).to(device)
+    point_idx = torch.arange(num_points)[None, :].expand(batch_size, num_points).to(device)
+    if mask is None:
+        pc_flatten = pc.flatten(end_dim=1)
+        batch_idx = batch_idx.reshape(-1)
+        point_idx = point_idx.reshape(-1)
+    else:
+        mask = mask.bool()
+        pc_flatten = pc[mask]
+        batch_idx = batch_idx[mask]
+        point_idx = point_idx[mask]
+
+    if len(pc_query.shape) == 2:
+        assert batch_idx_query is not None, "@batch_idx_query not provided in the arguments!"
+        pc_query_flatten = pc_query
+        batch_idx_query = batch_idx_query
+    else:
+        pc_query_flatten = pc_query.flatten(end_dim=1)
+        batch_idx_query = torch.arange(batch_size).repeat_interleave(pc_query.shape[1]).to(device)
+    idx = knn(
+        x=pc_flatten,
+        y=pc_query_flatten,
+        k=num_neighbors,
+        batch_x=batch_idx,
+        batch_y=batch_idx_query
+    )
+    point_idx_neighbor = point_idx[idx[1]].reshape(-1, num_neighbors)
+    return batch_idx_query, point_idx_neighbor
+
+
 def ball_query(
     pc_query: torch.Tensor,
     pc: torch.Tensor,
@@ -94,7 +148,7 @@ def ball_query(
 ) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], None]:
     """
     Finds for each element in @pc_query all points in @pc within distance @ball_radius and
-    filter out those query points with neighbor points less than @max_num_neighbors
+    filters out those query points with neighbor points less than @max_num_neighbors
 
     Args:
         pc_query: query points (Shape: [B, M, 3] or [N', 3]).
@@ -171,7 +225,7 @@ def sample_and_group(
     sample_ratio: Optional[float] = 0.3,
     group_method: Literal["knn", "ball_query"] = "ball_query",
     num_neighbors: Optional[int] = 10
-) -> Union[Tuple[torch.Tensor, torch.Tensor], None]:
+) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], None]:
     """
     Sample features in pc_mask==1 regions and look for neighbors in pc_mask==0 regions
 
@@ -192,7 +246,8 @@ def sample_and_group(
         raise ValueError(f"Unsupported sampling method {sample_method}! Must be either 'random' or 'fps'.")
     # Look for neighbor points & features in the "dictionary"
     if group_method == "knn":
-        pass
+        batch_idx_query, point_idx_neighbor = k_nearest_neighbors(pc_xyz_query, pc_xyz, batch_idx, key_mask, num_neighbors)
+        pc_feat_neighbor = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
     elif group_method == "ball_query":
         ret = ball_query(pc_xyz_query, pc_xyz, batch_idx, key_mask, max_num_neighbors=num_neighbors)
         if ret is None:
@@ -211,7 +266,7 @@ def visualize_in_original_pc(
     pc_query: torch.Tensor,    # (Q, 3)
     neighbors: torch.Tensor,   # (Q, K, 3)
     frame_id: int = 0,
-    sphere_radius: float = 0.015
+    sphere_radius: float = 0.005
 ):
     """
     Visualize query points and neighbors overlaid on the original point cloud.
@@ -261,13 +316,13 @@ if __name__ == "__main__":
     import zarr
     with zarr.open("/Users/wangjl/Desktop/Projects/sim_demo_collector/demos/robosuite_stack.zarr", 'r') as f:
         frame_id = 700
-        batch_size = 5
+        batch_size = 2
         camera = "frontview"
         pc = f[f'data/{camera}_pc'][()][frame_id: frame_id + batch_size]
         pc_mask = f[f'data/{camera}_pc_mask'][()][frame_id: frame_id + batch_size]
         pc = torch.from_numpy(pc).float()
         pc_mask = torch.from_numpy(pc_mask).bool()
 
-    batch_idx, pc_query, neighbors = sample_and_group(pc, pc, pc_mask, num_neighbors=5)
-    # visualize_in_original_pc(pc, pc_query, neighbors, frame_id=0)
+    batch_idx, pc_query, neighbors = sample_and_group(pc, pc, pc_mask, group_method="knn", num_neighbors=5)
+    visualize_in_original_pc(pc, pc_query[30:], neighbors[30:], frame_id=1)
     
