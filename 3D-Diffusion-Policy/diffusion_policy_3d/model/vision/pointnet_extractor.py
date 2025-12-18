@@ -290,6 +290,7 @@ class IConPointNetEncoderXYZ(nn.Module):
         if self.feat_agg_method == "mean":
             query = (feature * mask[..., None]).sum(dim=1) / (mask.sum(dim=1)[:, None] + eps)
         elif self.feat_agg_method == "max":
+            mask = mask.bool()
             query = feature.masked_fill(~mask[..., None], float('-inf')).max(dim=1)[0]
 
         batch_idx, pos_key, neg_key = sample_and_group(
