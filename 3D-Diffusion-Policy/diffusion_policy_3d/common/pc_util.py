@@ -45,6 +45,57 @@ def depth2pc(
     return pc, seg_mask
 
 
+def random_point_sample(
+    pc: torch.Tensor,
+    ratio: Optional[float] = 0.3,
+    mask: Union[torch.Tensor, None] = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Args:
+        pc: point cloud xyz (Shape: [B, N, 3]).
+        ratio: the percentage of points to be sampled.
+        mask: point cloud mask (Shape: [B, N]). If given, fps will be conducted
+            in the region where mask==1.
+
+    Returns:
+        batch_idx: the batch indices of the sampled points (Shape: [N',]).
+        point_idx: the point indices of the sampled points (Shape: [N',]).
+        pc_sample: the sampled points flattened along batch dimension (Shape: [N', 3]).
+    """
+    batch_size, num_points = pc.shape[:2]
+    device = pc.device
+    batch_idx = torch.arange(batch_size)[:, None].expand(batch_size, num_points).to(device)
+    point_idx = torch.arange(num_points)[None, :].expand(batch_size, num_points).to(device)
+    if mask is None:
+        pc_flatten = pc.flatten(end_dim=1)
+        batch_idx = batch_idx.reshape(-1)
+        point_idx = point_idx.reshape(-1)
+    else:
+        mask = mask.bool()
+        pc_flatten = pc[mask]
+        batch_idx = batch_idx[mask]
+        point_idx = point_idx[mask]
+    # Count sample points per batch
+    point_counts = torch.bincount(batch_idx, minlength=batch_size)
+    num_samples = (point_counts.float() * ratio).long().clamp(min=1)
+    # Random shuffle inside each batch
+    rand = torch.rand_like(batch_idx.float())
+    LARGE = batch_idx.numel() + 1
+    order = torch.argsort(batch_idx * LARGE + rand)
+    batch_idx_sort = batch_idx[order]
+    # Compute batch rank
+    batch_start = torch.zeros(batch_size + 1, device=device, dtype=torch.long)
+    batch_start[1:] = torch.cumsum(point_counts, dim=0)
+    start_idx = batch_start[batch_idx_sort]
+    batch_rank = torch.arange(batch_idx_sort.numel(), device=device) - start_idx
+    # Sample points inside valid regions
+    idx = order[batch_rank <= num_samples[batch_idx_sort]]
+    batch_idx = batch_idx[idx]
+    point_idx = point_idx[idx]
+    pc_sample = pc_flatten[idx]
+    return batch_idx, point_idx, pc_sample
+
+
 def farthest_point_sample(
     pc: torch.Tensor,
     ratio: Optional[float] = 0.3,
@@ -238,7 +289,8 @@ def sample_and_group(
     key_mask = None if pc_mask is None else ~pc_mask
     # Sample query points & features
     if sample_method == "random":
-        pass
+        batch_idx, point_idx, pc_xyz_query = random_point_sample(pc_xyz, sample_ratio, query_mask)
+        pc_feat_query = pc_feat[batch_idx, point_idx]
     elif sample_method == "fps":
         batch_idx, point_idx, pc_xyz_query = farthest_point_sample(pc_xyz, sample_ratio, query_mask)
         pc_feat_query = pc_feat[batch_idx, point_idx]
@@ -323,6 +375,6 @@ if __name__ == "__main__":
         pc = torch.from_numpy(pc).float()
         pc_mask = torch.from_numpy(pc_mask).bool()
 
-    batch_idx, pc_query, neighbors = sample_and_group(pc, pc, pc_mask, group_method="knn", num_neighbors=5)
-    visualize_in_original_pc(pc, pc_query[30:], neighbors[30:], frame_id=1)
+    batch_idx, pc_query, neighbors = sample_and_group(pc, pc, pc_mask, sample_method="random", group_method="ball_query", num_neighbors=5)
+    visualize_in_original_pc(pc, pc_query[:3], neighbors[:3], frame_id=0)
     
