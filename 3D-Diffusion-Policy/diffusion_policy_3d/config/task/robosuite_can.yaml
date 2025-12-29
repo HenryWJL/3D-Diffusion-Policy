@@ -5,22 +5,22 @@ shape_meta: &shape_meta
     agentview_pc:
       shape: [512, 3]
       type: point_cloud
-    robot0_eye_in_hand_pc:
-      shape: [512, 3]
-      type: point_cloud
+    # robot0_eye_in_hand_pc:
+    #   shape: [512, 3]
+    #   type: point_cloud
     agentview_pc_mask:
       shape: [512]
-    robot0_eye_in_hand_pc_mask:
-      shape: [512]
+    # robot0_eye_in_hand_pc_mask:
+    #   shape: [512]
     robot0_eef_pos:
       shape: [3]
       type: low_dim
     robot0_eef_quat:
       shape: [4]
       type: low_dim
-    robot0_gripper_qpos:
-      shape: [2]
-      type: low_dim
+    # robot0_gripper_qpos:
+    #   shape: [2]
+    #   type: low_dim
   action:
     shape: [10]
 
