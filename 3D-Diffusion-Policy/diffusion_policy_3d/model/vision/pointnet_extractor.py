@@ -279,30 +279,52 @@ class IConPointNetEncoderXYZ(nn.Module):
         self.num_neighbors = icon_cfg['num_neighbors']
         self.temperature = icon_cfg['temperature']
 
+    # def forward_loss(self, xyz, feature, mask):
+    #     """
+    #     X: (B, N, 3)
+    #     feature: (B, N, C)
+    #     mask: (B, N)
+    #     """
+    #     mask = mask.float()
+    #     eps = 1e-8
+    #     if self.feat_agg_method == "mean":
+    #         query = (feature * mask[..., None]).sum(dim=1) / (mask.sum(dim=1)[:, None] + eps)
+    #     elif self.feat_agg_method == "max":
+    #         mask = mask.bool()
+    #         query = feature.masked_fill(~mask[..., None], float('-inf')).max(dim=1)[0]
+
+    #     batch_idx, pos_key, neg_key = sample_and_group(
+    #         pc_xyz=xyz,
+    #         pc_feat=feature,
+    #         pc_mask=mask.bool(),
+    #         sample_method=self.sample_method,
+    #         sample_ratio=self.sample_ratio,
+    #         group_method=self.group_method,
+    #         num_neighbors=self.num_neighbors
+    #     )
+    #     query = query[batch_idx]
+    #     loss = info_nce_loss(
+    #         query=query,
+    #         pos_key=pos_key,
+    #         neg_key=neg_key,
+    #         batch_idx=batch_idx,
+    #         temp=self.temperature,
+    #         reduction='mean'
+    #     )
+    #     return loss
+
     def forward_loss(self, xyz, feature, mask):
         """
         X: (B, N, 3)
         feature: (B, N, C)
         mask: (B, N)
         """
-        mask = mask.float()
-        eps = 1e-8
-        if self.feat_agg_method == "mean":
-            query = (feature * mask[..., None]).sum(dim=1) / (mask.sum(dim=1)[:, None] + eps)
-        elif self.feat_agg_method == "max":
-            mask = mask.bool()
-            query = feature.masked_fill(~mask[..., None], float('-inf')).max(dim=1)[0]
-
-        batch_idx, pos_key, neg_key = sample_and_group(
+        batch_idx, query, pos_key, neg_key = sample_and_group(
             pc_xyz=xyz,
             pc_feat=feature,
             pc_mask=mask.bool(),
-            sample_method=self.sample_method,
-            sample_ratio=self.sample_ratio,
-            group_method=self.group_method,
-            num_neighbors=self.num_neighbors
+            sample_ratio=self.sample_ratio
         )
-        query = query[batch_idx]
         loss = info_nce_loss(
             query=query,
             pos_key=pos_key,
