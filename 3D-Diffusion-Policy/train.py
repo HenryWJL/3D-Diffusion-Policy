@@ -269,6 +269,7 @@ class TrainDP3Workspace:
                     t1_5 = time.time()
                     step_log.update(loss_dict)
                     t2 = time.time()
+                    logger.info(loss_dict)
                     
                     if verbose and self.local_rank == 0:
                         print(f"total one step time: {t2-t1:.3f}")
