@@ -49,7 +49,7 @@ def random_point_sample(
     pc: torch.Tensor,
     ratio: Optional[float] = 0.3,
     mask: Union[torch.Tensor, None] = None
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Args:
         pc: point cloud xyz (Shape: [B, N, 3]).
@@ -100,7 +100,7 @@ def farthest_point_sample(
     pc: torch.Tensor,
     ratio: Optional[float] = 0.3,
     mask: Union[torch.Tensor, None] = None
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Args:
         pc: point cloud xyz (Shape: [B, N, 3]).
@@ -126,12 +126,15 @@ def farthest_point_sample(
         pc_flatten = pc[mask]
         batch_idx = batch_idx[mask]
         point_idx = point_idx[mask]
-    # The returned fps indices range from 0 to B*N
-    idx = fps(pc_flatten, batch_idx, ratio)
-    batch_idx = batch_idx[idx]
-    point_idx = point_idx[idx]
-    # Gather sampled points
-    pc_sample = pc[batch_idx, point_idx]
+    if ratio >= 1.0:
+        pc_sample = pc_flatten
+    else:
+        # The returned fps indices range from 0 to B*N
+        idx = fps(pc_flatten, batch_idx, ratio)
+        batch_idx = batch_idx[idx]
+        point_idx = point_idx[idx]
+        # Gather sampled points
+        pc_sample = pc[batch_idx, point_idx]
     return batch_idx, point_idx, pc_sample
 
 
