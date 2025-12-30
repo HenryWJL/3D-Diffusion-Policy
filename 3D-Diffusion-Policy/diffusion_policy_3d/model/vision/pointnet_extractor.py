@@ -268,7 +268,7 @@ class IConPointNetEncoderXYZ(nn.Module):
         # Inter-point contrast
         self.proj = nn.Sequential(
             nn.Linear(block_channel[-1], 512),
-            nn.BatchNorm1d(512),
+            nn.LayerNorm(512),
             nn.ReLU(inplace=True),
             nn.Linear(512, 128)
         )
