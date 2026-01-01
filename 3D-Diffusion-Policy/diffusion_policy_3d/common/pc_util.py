@@ -271,70 +271,22 @@ def ball_query(
     return query_idx, batch_idx_query, point_idx_neighbor
 
 
-# def sample_and_group(
-#     pc_xyz: torch.Tensor,
-#     pc_feat: torch.Tensor,
-#     pc_mask: Union[torch.Tensor, None] = None,
-#     sample_method: Literal["random", "fps"] = "fps",
-#     sample_ratio: Optional[float] = 0.3,
-#     group_method: Literal["knn", "ball_query"] = "ball_query",
-#     num_neighbors: Optional[int] = 10
-# ) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], None]:
-#     """
-#     Sample features in pc_mask==1 regions and look for neighbors in pc_mask==0 regions
-
-#     Returns:
-#         batch_idx_query: batch indices of @pc_feat_query (Shape: [M',]).
-#         pc_feat_query: feature query (Shape: [M', D]).
-#         pc_feat_neighbor: neighbor features of @pc_feat_query (Shape: [M', @num_neighbors, D]).
-#     """
-#     pos_key_mask = pc_mask
-#     neg_key_mask = None if pc_mask is None else ~pc_mask
-#     # Sample query points & features
-#     if sample_method == "random":
-#         batch_idx, point_idx, pc_xyz_query = random_point_sample(pc_xyz, sample_ratio, pos_key_mask)
-#         pc_feat_query = pc_feat[batch_idx, point_idx]
-#     elif sample_method == "fps":
-#         batch_idx, point_idx, pc_xyz_query = farthest_point_sample(pc_xyz, sample_ratio, pos_key_mask)
-#         pc_feat_query = pc_feat[batch_idx, point_idx]
-#     else:
-#         raise ValueError(f"Unsupported sampling method {sample_method}! Must be either 'random' or 'fps'.")
-#     # Look for neighbor points & features in the "dictionary"
-#     if group_method == "knn":
-#         batch_idx_query, point_idx_neighbor = k_nearest_neighbors(pc_xyz_query, pc_xyz, batch_idx, neg_key_mask, num_neighbors)
-#         pc_feat_neighbor = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
-#     elif group_method == "ball_query":
-#         ret = ball_query(pc_xyz_query, pc_xyz, batch_idx, neg_key_mask, max_num_neighbors=num_neighbors)
-#         if ret is None:
-#             return ret
-#         query_idx, batch_idx_query, point_idx_neighbor = ret
-#         pc_feat_query = pc_feat_query[query_idx]
-#         pc_feat_neighbor = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
-#     else:
-#         raise ValueError(f"Unsupported grouping method {group_method}! Must be either 'knn' or 'ball_query'.")
-    
-#     return batch_idx_query, pc_feat_query, pc_feat_neighbor
-
-
 def sample_and_group(
     pc_xyz: torch.Tensor,
     pc_feat: torch.Tensor,
     pc_mask: Union[torch.Tensor, None] = None,
     sample_method: Literal["random", "fps"] = "fps",
     sample_ratio: Optional[float] = 0.3,
-    group_method: Literal["knn"] = "knn",
-    num_pos_keys: Optional[int] = 1,
-    num_neg_keys: Optional[int] = 5
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    group_method: Literal["knn", "ball_query"] = "ball_query",
+    num_neighbors: Optional[int] = 10
+) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], None]:
     """
-    Sample feature query in pc_mask==1 regions and look for positive and negative
-    neighbors in pc_mask==1 and pc_mask==0 regions, respectively.
+    Sample features in pc_mask==1 regions and look for neighbors in pc_mask==0 regions
 
     Returns:
-        batch_idx_query: (N',)
-        pc_feat_query: (N', D)
-        pc_feat_pos_keys: (N', @num_pos_keys, D)
-        pc_feat_neg_keys: (N', @num_neg_keys, D)
+        batch_idx_query: batch indices of @pc_feat_query (Shape: [M',]).
+        pc_feat_query: feature query (Shape: [M', D]).
+        pc_feat_neighbor: neighbor features of @pc_feat_query (Shape: [M', @num_neighbors, D]).
     """
     pos_key_mask = pc_mask
     neg_key_mask = None if pc_mask is None else ~pc_mask
@@ -349,14 +301,63 @@ def sample_and_group(
         raise ValueError(f"Unsupported sampling method {sample_method}! Must be either 'random' or 'fps'.")
     # Look for neighbor points & features in the "dictionary"
     if group_method == "knn":
-        batch_idx_query, point_idx_neighbor = k_nearest_neighbors(pc_xyz_query, pc_xyz, batch_idx, pos_key_mask, num_pos_keys)
-        pc_feat_pos_keys = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
-        batch_idx_query, point_idx_neighbor = k_nearest_neighbors(pc_xyz_query, pc_xyz, batch_idx, neg_key_mask, num_neg_keys)
-        pc_feat_neg_keys = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
+        # batch_idx_query, point_idx_neighbor = k_nearest_neighbors(pc_xyz_query, pc_xyz, batch_idx, neg_key_mask, num_neighbors)
+        batch_idx_query, point_idx_neighbor = k_nearest_neighbors(pc_feat_query, pc_feat, batch_idx, neg_key_mask, num_neighbors)
+        pc_feat_neighbor = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
+    elif group_method == "ball_query":
+        ret = ball_query(pc_xyz_query, pc_xyz, batch_idx, neg_key_mask, max_num_neighbors=num_neighbors)
+        if ret is None:
+            return ret
+        query_idx, batch_idx_query, point_idx_neighbor = ret
+        pc_feat_query = pc_feat_query[query_idx]
+        pc_feat_neighbor = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
     else:
-        raise ValueError(f"Unsupported grouping method {group_method}!")
+        raise ValueError(f"Unsupported grouping method {group_method}! Must be either 'knn' or 'ball_query'.")
     
-    return batch_idx_query, pc_feat_query, pc_feat_pos_keys, pc_feat_neg_keys
+    return batch_idx_query, pc_feat_query, pc_feat_neighbor
+
+
+# def sample_and_group(
+#     pc_xyz: torch.Tensor,
+#     pc_feat: torch.Tensor,
+#     pc_mask: Union[torch.Tensor, None] = None,
+#     sample_method: Literal["random", "fps"] = "fps",
+#     sample_ratio: Optional[float] = 0.3,
+#     group_method: Literal["knn"] = "knn",
+#     num_pos_keys: Optional[int] = 1,
+#     num_neg_keys: Optional[int] = 5
+# ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+#     """
+#     Sample feature query in pc_mask==1 regions and look for positive and negative
+#     neighbors in pc_mask==1 and pc_mask==0 regions, respectively.
+
+#     Returns:
+#         batch_idx_query: (N',)
+#         pc_feat_query: (N', D)
+#         pc_feat_pos_keys: (N', @num_pos_keys, D)
+#         pc_feat_neg_keys: (N', @num_neg_keys, D)
+#     """
+#     pos_key_mask = pc_mask
+#     neg_key_mask = None if pc_mask is None else ~pc_mask
+#     # Sample query points & features
+#     if sample_method == "random":
+#         batch_idx, point_idx, pc_xyz_query = random_point_sample(pc_xyz, sample_ratio, pos_key_mask)
+#         pc_feat_query = pc_feat[batch_idx, point_idx]
+#     elif sample_method == "fps":
+#         batch_idx, point_idx, pc_xyz_query = farthest_point_sample(pc_xyz, sample_ratio, pos_key_mask)
+#         pc_feat_query = pc_feat[batch_idx, point_idx]
+#     else:
+#         raise ValueError(f"Unsupported sampling method {sample_method}! Must be either 'random' or 'fps'.")
+#     # Look for neighbor points & features in the "dictionary"
+#     if group_method == "knn":
+#         batch_idx_query, point_idx_neighbor = k_nearest_neighbors(pc_xyz_query, pc_xyz, batch_idx, pos_key_mask, num_pos_keys)
+#         pc_feat_pos_keys = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
+#         batch_idx_query, point_idx_neighbor = k_nearest_neighbors(pc_xyz_query, pc_xyz, batch_idx, neg_key_mask, num_neg_keys)
+#         pc_feat_neg_keys = pc_feat[batch_idx_query[:, None], point_idx_neighbor]
+#     else:
+#         raise ValueError(f"Unsupported grouping method {group_method}!")
+    
+#     return batch_idx_query, pc_feat_query, pc_feat_pos_keys, pc_feat_neg_keys
 
 
 def visualize_in_original_pc(
