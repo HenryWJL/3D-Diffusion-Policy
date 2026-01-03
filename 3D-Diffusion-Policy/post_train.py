@@ -81,7 +81,7 @@ class TrainDP3Workspace:
         self.model.to(self.device)
         ckpt_path = cfg.ckpt_paths
         if ckpt_path and os.path.isfile(ckpt_path):
-            self.model.load_state_dict(torch.load(ckpt_path, map_location=self.device)['state_dicts']['ema_model'], weights_only=False)
+            self.model.load_state_dict(torch.load(ckpt_path, map_location=self.device, weights_only=False)['state_dicts']['ema_model'])
             cprint(f"Load pretrained checkpoint {ckpt_path}", color='red')
         self.teacher_model = copy.deepcopy(self.model)
         self.teacher_model.set_normalizer(self.model.normalizer)
