@@ -134,7 +134,7 @@ class DP3(BasePolicy):
         if noise is None:
             noise = torch.randn_like(action, device=action.device, dtype=action.dtype)
         noisy_action = self.noise_scheduler.add_noise(action, noise, timestep)
-        alpha_bar = self.noise_scheduler.alphas_cumprod[timestep].to(action.device)
+        alpha_bar = self.noise_scheduler.alphas_cumprod.to(action.device)[timestep]
         return noisy_action, alpha_bar
 
     def forward(self, batch, timestep):

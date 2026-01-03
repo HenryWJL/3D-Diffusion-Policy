@@ -165,7 +165,7 @@ class TrainDP3Workspace:
                     ).long()
                     # perturb actions
                     batch_perturbed = copy.deepcopy(batch)
-                    alpha_bar = teacher_model.noise_scheduler.alphas_cumprod[timestep]
+                    alpha_bar = teacher_model.noise_scheduler.alphas_cumprod.to(self.device)[timestep]
                     sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
                     batch_perturbed['action'] += sigma * torch.randn_like(batch_perturbed['action'])
                     # predict means
