@@ -129,7 +129,76 @@ class DP3(BasePolicy):
 
 
         print_params(self)
+
+    def forward_diffusion(self, action: torch.Tensor, timestep: torch.Tensor, noise: torch.Tensor = None):
+        if noise is None:
+            noise = torch.randn_like(action, device=action.device, dtype=action.dtype)
+        noisy_action = self.noise_scheduler.add_noise(action, noise, timestep)
+        alpha_bar = self.noise_scheduler.alphas_cumprod[timestep].to(action.device)
+        return noisy_action, alpha_bar
+
+    def forward(self, batch, timestep):
+        # normalize input
+        nobs = self.normalizer.normalize(batch['obs'])
+        for key, val in nobs.items():
+            nobs[key] = val.float()
+        nactions = self.normalizer['action'].normalize(batch['action'])
+        nactions = nactions.float()
         
+        batch_size = nactions.shape[0]
+        horizon = nactions.shape[1]
+        # handle different ways of passing observation
+        local_cond = None
+        global_cond = None
+        trajectory = nactions
+        cond_data = trajectory
+        if self.obs_as_global_cond:
+            # reshape B, T, ... to B*T
+            this_nobs = dict_apply(nobs, 
+                lambda x: x[:,:self.n_obs_steps,...].reshape(-1,*x.shape[2:]))
+            nobs_features = self.obs_encoder(this_nobs)
+            if "cross_attention" in self.condition_type:
+                # treat as a sequence
+                global_cond = nobs_features.reshape(batch_size, self.n_obs_steps, -1)
+            else:
+                # reshape back to B, Do
+                global_cond = nobs_features.reshape(batch_size, -1)
+        else:
+            # reshape B, T, ... to B*T
+            this_nobs = dict_apply(nobs, lambda x: x.reshape(-1, *x.shape[2:]))
+            nobs_features = self.obs_encoder(this_nobs)
+            # reshape back to B, T, Do
+            nobs_features = nobs_features.reshape(batch_size, horizon, -1)
+            cond_data = torch.cat([nactions, nobs_features], dim=-1)
+            trajectory = cond_data.detach()
+
+        # add noise
+        noisy_trajectory, alpha_bar = self.forward_diffusion(trajectory, timestep)
+        # generate impainting mask
+        condition_mask = self.mask_generator(trajectory.shape)
+        # compute loss mask
+        loss_mask = ~condition_mask
+        # apply conditioning
+        noisy_trajectory[condition_mask] = cond_data[condition_mask]
+        # predict
+        pred = self.model(
+            sample=noisy_trajectory, 
+            timestep=timestep, 
+            local_cond=local_cond, 
+            global_cond=global_cond
+        )
+        pred_type = self.noise_scheduler.config.prediction_type 
+        if pred_type == 'epsilon':
+            eps = pred
+            alpha_bar = alpha_bar.view(-1, 1, 1)
+            mu = (noisy_trajectory - torch.sqrt(1 - alpha_bar) * eps) / torch.sqrt(alpha_bar)
+        elif pred_type == 'sample':
+            mu = pred
+        else:
+            raise ValueError(f"Unsupported prediction type {pred_type}")
+
+        return mu, trajectory, loss_mask
+
     # ========= inference  ============
     def conditional_sample(self, 
             condition_data, condition_mask,
