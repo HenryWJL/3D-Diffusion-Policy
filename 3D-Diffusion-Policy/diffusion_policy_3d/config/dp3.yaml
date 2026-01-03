@@ -6,12 +6,7 @@ name: train_dp3
 task_name: ${task.name}
 shape_meta: ${task.shape_meta}
 exp_name: "debug"
-ckpt_paths: ""
-  # - checkpoints/600.pth
-  # - checkpoints/1200.pth
-  # - checkpoints/1800.pth
-  # - checkpoints/2400.pth
-  # - checkpoints/3000.pth
+ckpt_paths: "latest.pth"
 hf_repo_id: "HenryWJL/dp3"
 
 # horizon: 4
