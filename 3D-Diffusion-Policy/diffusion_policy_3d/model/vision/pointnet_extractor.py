@@ -379,7 +379,7 @@ class DP3Encoder(nn.Module):
                  pointnet_type='pointnet',
                  ):
         super().__init__()
-        self.state_key = [key for key in observation_space.keys() if (key.startswith("robot") and not key.endswith("pc"))]
+        self.state_key = [key for key in observation_space.keys() if (key.startswith("robot") and not key.endswith("pc") and not key.endswith("pc_mask"))]
         self.point_cloud_key = [key for key in observation_space.keys() if key.endswith("pc")]
         
         self.point_cloud_shape = observation_space[self.point_cloud_key[0]]
