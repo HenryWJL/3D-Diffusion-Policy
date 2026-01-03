@@ -157,17 +157,17 @@ class TrainDP3Workspace:
                 for batch_idx, batch in enumerate(tepoch):
                     # device transfer
                     batch = dict_apply(batch, lambda x: x.to(self.device, non_blocking=True))
-                    # perturb actions
-                    batch_perturbed = copy.deepcopy(batch)
-                    alpha_bar = teacher_model.noise_scheduler.alphas_cumprod[timestep]
-                    sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
-                    batch_perturbed['action'] += sigma * torch.randn_like(batch_perturbed['action'])
                     # sample timestep
                     batch_size = batch['action'].shape[0]
                     timestep = torch.randint(
                         0, self.teacher_model.noise_scheduler.config.num_train_timesteps, 
                         (batch_size,), device=self.device
                     ).long()
+                    # perturb actions
+                    batch_perturbed = copy.deepcopy(batch)
+                    alpha_bar = teacher_model.noise_scheduler.alphas_cumprod[timestep]
+                    sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
+                    batch_perturbed['action'] += sigma * torch.randn_like(batch_perturbed['action'])
                     # predict means
                     mu_student, _, _ = model_ref(batch_perturbed, timestep)
                     with torch.no_grad():
