@@ -170,12 +170,14 @@ class TrainDP3Workspace:
                     sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
                     batch_perturbed['action'] += sigma * torch.randn_like(batch_perturbed['action'])
                     # predict means
-                    mu_student, _, loss_mask = model_ref(batch_perturbed, timestep)
+                    mu_student, _, _ = model_ref(batch_perturbed, timestep)
                     with torch.no_grad():
-                        mu_teacher, actions, _ = teacher_model(batch, timestep)
+                        mu_teacher, actions, loss_mask = teacher_model(batch, timestep)
                     weight = (actions - mu_teacher).abs().mean(dim=(1, 2), keepdim=True)
-                    grad = (mu_student - mu_teacher) / (weight + 1e-8)
-                    target = (actions - grad).detach()
+                    # grad = (mu_student - mu_teacher) / (weight + 1e-8)
+                    # target = (actions - grad).detach()
+                    grad = (mu_student - mu_teacher.detach()) / (weight + 1e-8)
+                    target = actions - grad.detach()
                     loss = 0.5 * F.mse_loss(actions, target, reduction='none')
                     loss = loss * loss_mask.type(loss.dtype)
                     loss = reduce(loss, 'b ... -> b (...)', 'mean')
