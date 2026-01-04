@@ -184,6 +184,7 @@ class TrainDP3Workspace:
                     loss = loss.mean()
                     loss /= cfg.training.gradient_accumulate_every
                     loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model_ref.parameters(), max_norm=10)
                     # step optimizer
                     if self.global_step % cfg.training.gradient_accumulate_every == 0:
                         self.optimizer.step()
