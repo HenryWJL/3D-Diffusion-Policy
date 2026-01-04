@@ -176,8 +176,8 @@ class TrainDP3Workspace:
                     weight = (actions - mu_teacher).abs().mean(dim=(1, 2), keepdim=True)
                     # grad = (mu_student - mu_teacher) / (weight + 1e-8)
                     # target = (actions - grad).detach()
-                    grad = (mu_student - mu_teacher.detach()) / (weight + 1e-8)
-                    target = actions - grad.detach()
+                    grad = (mu_student - mu_teacher) / (weight + 1e-8)
+                    target = actions - grad
                     loss = 0.5 * F.mse_loss(actions, target, reduction='none')
                     loss = loss * loss_mask.type(loss.dtype)
                     loss = reduce(loss, 'b ... -> b (...)', 'mean')
