@@ -180,8 +180,9 @@ class TrainDP3Workspace:
                     loss = loss * loss_mask.type(loss.dtype)
                     loss = reduce(loss, 'b ... -> b (...)', 'mean')
                     loss = loss.mean()
-                    train_losses.append(loss.item())
                     loss /= cfg.training.gradient_accumulate_every
+                    assert mu_student.requires_grad
+                    assert loss.requires_grad
                     loss.backward()
                     # step optimizer
                     if self.global_step % cfg.training.gradient_accumulate_every == 0:
@@ -190,6 +191,8 @@ class TrainDP3Workspace:
                         # update ema
                         if cfg.training.use_ema:
                             self.ema.step(model_ref)    
+
+                    train_losses.append(loss.item())
 
                     is_last_batch = (batch_idx == (len(self.train_dataloader)-1))
                     if not is_last_batch:
