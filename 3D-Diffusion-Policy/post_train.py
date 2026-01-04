@@ -206,6 +206,7 @@ class TrainDP3Workspace:
             # at the end of each epoch
             # replace train_loss with epoch average
             train_loss = np.mean(train_losses)
+            logger.info(f"Loss: {train_loss}")
             step_log['train_loss'] = train_loss
 
             if self.local_rank == 0:    
