@@ -600,20 +600,20 @@ class TrainDP3Workspace:
                         mu_teacher, actions, loss_mask = teacher_model(batch, timestep)
                         mu_teacher = mu_teacher.detach()
 
-                    # weight = (actions - mu_teacher).abs().mean(dim=(1, 2), keepdim=True)
-                    # grad = (mu_student - mu_teacher) / (weight + 1e-8)
-                    # target = actions - grad
-                    # loss = 0.5 * F.mse_loss(actions, target, reduction='none')
-                    # loss = loss * loss_mask.type(loss.dtype)
-                    # loss = reduce(loss, 'b ... -> b (...)', 'mean')
-
-                    # TODO 1
-                    weight = (actions_perturbed - mu_teacher).abs().mean(dim=(1, 2), keepdim=True)
+                    weight = (actions - mu_teacher).abs().mean(dim=(1, 2), keepdim=True)
                     grad = (mu_student - mu_teacher) / (weight + 1e-8)
-                    target = (actions_perturbed - grad)
-                    loss = 0.5 * F.mse_loss(actions_perturbed, target, reduction='none')
+                    target = actions - grad
+                    loss = 0.5 * F.mse_loss(actions, target, reduction='none')
                     loss = loss * loss_mask.type(loss.dtype)
                     loss = reduce(loss, 'b ... -> b (...)', 'mean')
+
+                    # # TODO 1
+                    # weight = (actions_perturbed - mu_teacher).abs().mean(dim=(1, 2), keepdim=True)
+                    # grad = (mu_student - mu_teacher) / (weight + 1e-8)
+                    # target = (actions_perturbed - grad)
+                    # loss = 0.5 * F.mse_loss(actions_perturbed, target, reduction='none')
+                    # loss = loss * loss_mask.type(loss.dtype)
+                    # loss = reduce(loss, 'b ... -> b (...)', 'mean')
 
                     # # TODO 2
                     # loss = F.mse_loss(mu_teacher, mu_student, reduction='none')
