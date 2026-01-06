@@ -508,12 +508,12 @@ class TrainDP3Workspace:
         if ckpt_path and os.path.isfile(ckpt_path):
             self.model.load_state_dict(torch.load(ckpt_path, map_location=self.device, weights_only=False)['state_dicts']['ema_model'])
             cprint(f"Load pretrained checkpoint {ckpt_path}", color='red')
-        self.ema_model = copy.deepcopy(self.model)
-        self.ema_model.set_normalizer(self.model.normalizer)
+        self.teacher_model = copy.deepcopy(self.model)
+        self.teacher_model.set_normalizer(self.model.normalizer)
         # freeze
-        for param in self.ema_model.parameters():
+        for param in self.teacher_model.parameters():
             param.requires_grad = False
-        self.ema_model.eval()
+        self.teacher_model.eval()
         # Wrap student model with DDP (if distributed)
         if self.is_distributed:
             self.model = DDP(
@@ -578,7 +578,7 @@ class TrainDP3Workspace:
                 
                 model_ref = self.model.module if self.is_distributed else self.model
                 model_ref.train()
-                ema_model = self.ema_model
+                teacher_model = self.teacher_model
 
                 for batch_idx, batch in enumerate(tepoch):
                     # device transfer
@@ -591,13 +591,13 @@ class TrainDP3Workspace:
                     ).long()
                     # perturb actions
                     batch_perturbed = copy.deepcopy(batch)
-                    alpha_bar = ema_model.noise_scheduler.alphas_cumprod.to(self.device)[timestep]
+                    alpha_bar = teacher_model.noise_scheduler.alphas_cumprod.to(self.device)[timestep]
                     sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
                     batch_perturbed['action'] += sigma * torch.randn_like(batch_perturbed['action'])
                     # predict means
                     mu_student, actions_perturbed, _ = model_ref(batch_perturbed, timestep)
                     with torch.no_grad():
-                        mu_teacher, actions, loss_mask = ema_model(batch, timestep)
+                        mu_teacher, actions, loss_mask = teacher_model(batch, timestep)
                         mu_teacher = mu_teacher.detach()
 
                     # weight = (actions - mu_teacher).abs().mean(dim=(1, 2), keepdim=True)
@@ -659,7 +659,7 @@ class TrainDP3Workspace:
                 if (self.epoch % cfg.training.checkpoint_every) == 0 and cfg.checkpoint.save_ckpt:
                     # checkpointing
                     if cfg.checkpoint.save_last_ckpt:
-                        self.save_checkpoint(exclude_keys=['ema_model'])
+                        self.save_checkpoint(exclude_keys=['teacher_model'])
                     if cfg.checkpoint.save_last_snapshot:
                         self.save_snapshot()
 
