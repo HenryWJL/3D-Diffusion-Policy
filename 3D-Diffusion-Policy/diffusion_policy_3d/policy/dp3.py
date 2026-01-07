@@ -198,6 +198,90 @@ class DP3(BasePolicy):
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
         return mu, trajectory, loss_mask
+    
+    def compute_score(self, action, obs_dict):
+        # normalize input
+        nobs = self.normalizer.normalize(obs_dict)
+        for key, val in nobs.items():
+            nobs[key] = val.float()
+        nactions = self.normalizer['action'].normalize(action)
+        nactions = nactions.float()
+        
+        batch_size = nactions.shape[0]
+        horizon = nactions.shape[1]
+        action_dim = nactions.shape[-1]
+        # handle different ways of passing observation
+        local_cond = None
+        global_cond = None
+        trajectory = nactions
+        cond_data = trajectory
+        if self.obs_as_global_cond:
+            # reshape B, T, ... to B*T
+            this_nobs = dict_apply(nobs, 
+                lambda x: x[:,:self.n_obs_steps,...].reshape(-1,*x.shape[2:]))
+            nobs_features = self.obs_encoder(this_nobs)
+            if "cross_attention" in self.condition_type:
+                # treat as a sequence
+                global_cond = nobs_features.reshape(batch_size, self.n_obs_steps, -1)
+            else:
+                # reshape back to B, Do
+                global_cond = nobs_features.reshape(batch_size, -1)
+        else:
+            # reshape B, T, ... to B*T
+            this_nobs = dict_apply(nobs, lambda x: x.reshape(-1, *x.shape[2:]))
+            nobs_features = self.obs_encoder(this_nobs)
+            # reshape back to B, T, Do
+            nobs_features = nobs_features.reshape(batch_size, horizon, -1)
+            cond_data = torch.cat([nactions, nobs_features], dim=-1)
+            trajectory = cond_data.detach()
+
+        # Sample noise that we'll add to the images
+        noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
+
+        # sample timestep
+        T = self.noise_scheduler.config.num_train_timesteps
+        timesteps = torch.randint(
+            int(0.02 * T), int(0.98 * T), 
+            (1,), device=trajectory.device
+        )
+        timesteps = timesteps.expand(batch_size).long()
+
+        # Add noise to the clean images according to the noise magnitude at each timestep
+        # (this is the forward diffusion process)
+        noisy_trajectory = self.noise_scheduler.add_noise(
+            trajectory, noise, timesteps)
+        
+        # generate impainting mask
+        condition_mask = self.mask_generator(trajectory.shape)
+        # apply conditioning
+        noisy_trajectory[condition_mask] = cond_data[condition_mask]
+        # predict
+        pred = self.model(
+            sample=noisy_trajectory, 
+            timestep=timesteps, 
+            local_cond=local_cond, 
+            global_cond=global_cond
+        )
+        pred_type = self.noise_scheduler.config.prediction_type 
+        alpha_bar_t = self.noise_scheduler.alphas_cumprod[timesteps]
+        alpha_bar_t = alpha_bar_t.view(batch_size, 1, 1).to(trajectory.device)
+        sqrt_alpha_bar = alpha_bar_t.sqrt()
+        sigma_t = (1.0 - alpha_bar_t).sqrt()
+        if pred_type == "epsilon":
+            score = -pred / sigma_t
+        elif pred_type == "sample":
+            x0_pred = pred
+            score = -(noisy_trajectory - sqrt_alpha_bar * x0_pred) / (sigma_t ** 2)
+        elif pred_type == "v_prediction":
+            v = pred
+            eps = sqrt_alpha_bar * v + sigma_t * noisy_trajectory
+            score = -eps / sigma_t
+        else:
+            raise ValueError(f"Unsupported prediction type {pred_type}")
+        if not self.obs_as_global_cond:
+            score = score[:, :, :action_dim]
+
+        return score
 
     # ========= inference  ============
     def conditional_sample(self, 
@@ -226,13 +310,13 @@ class DP3(BasePolicy):
             trajectory[condition_mask] = condition_data[condition_mask]
 
 
-            model_output = model(sample=trajectory,
+            pred = model(sample=trajectory,
                                 timestep=t, 
                                 local_cond=local_cond, global_cond=global_cond)
             
             # 3. compute previous image: x_t -> x_t-1
             trajectory = scheduler.step(
-                model_output, t, trajectory, ).prev_sample
+                pred, t, trajectory, ).prev_sample
             
                 
         # finally make sure conditioning is enforced
