@@ -6,90 +6,99 @@ from diffusion_policy_3d.policy.base_policy import BasePolicy
 
 def svgd_kernel(x, h=None):
     """
-    Computes RBF kernel and its gradient w.r.t. x, for trajectories x of shape [N, L, D].
-    
+    Time-factorized RBF kernel for SVGD.
+
     Args:
-        x: Tensor of shape [N, L, D] (particles / trajectories)
-        h: Bandwidth. If None, uses median heuristic.
-    
+        x: Tensor of shape [N, L, D]
+        h: Bandwidth (scalar). If None, uses median heuristic.
+
     Returns:
-        Kxy: [N, N] kernel matrix
-        dxkxy: [N, L, D] gradient of kernel
+        Kxy:   [N, N, L]   kernel per timestep
+        dxkxy: [N, L, D]   gradient of kernel sum wrt x
     """
     N, L, D = x.shape
+    device, dtype = x.device, x.dtype
+
     if N <= 1:
-        Kxy = torch.ones((N, N), device=x.device, dtype=x.dtype)
+        Kxy = torch.ones((N, N, L), device=device, dtype=dtype)
         dxkxy = torch.zeros_like(x)
         return Kxy, dxkxy
 
-    # Flatten trajectories for distance computation: [N, L*D]
-    x_flat = x.view(N, -1)
+    # pairwise differences per timestep
+    # diff: [N, N, L, D]
+    diff = x.unsqueeze(1) - x.unsqueeze(0)
 
-    # Pairwise squared distances
-    diff = x_flat.unsqueeze(1) - x_flat.unsqueeze(0)  # [N, N, L*D]
-    pairwise_dist = torch.sum(diff ** 2, dim=-1)       # [N, N]
+    # squared distances per timestep
+    # dist2: [N, N, L]
+    dist2 = diff.pow(2).sum(dim=-1)
 
-    # Median trick for bandwidth
+    # median heuristic (over all timesteps)
     if h is None:
-        mask = torch.triu(torch.ones(N, N, device=x.device, dtype=torch.bool), diagonal=1)
-        median_dist = torch.median(pairwise_dist[mask])
+        mask = torch.triu(torch.ones(N, N, device=device, dtype=torch.bool), diagonal=1)
+        median_dist = torch.median(dist2[mask])
         median_dist = torch.clamp(median_dist, min=1e-12)
-        h = torch.sqrt(0.5 * median_dist / torch.log(torch.tensor(N + 1.0, device=x.device))) + 1e-6
+        h = torch.sqrt(
+            0.5 * median_dist / torch.log(torch.tensor(N + 1.0, device=device))
+        ) + 1e-6
 
-    # RBF kernel
-    Kxy = torch.exp(-pairwise_dist / (2 * h ** 2))
+    # RBF kernel per timestep
+    # Kxy: [N, N, L]
+    Kxy = torch.exp(-dist2 / (2 * h**2))
 
-    # Kernel gradient (vectorized)
-    sum_kxy = Kxy.sum(dim=1, keepdim=True)  # [N, 1]
-    dxkxy_flat = -torch.matmul(Kxy, x_flat) + x_flat * sum_kxy
-    dxkxy_flat = dxkxy_flat / (h ** 2)
+    # kernel gradient
+    # sum over j for each i,t
+    sum_kxy = Kxy.sum(dim=1, keepdim=False)  # [N, L]
 
-    # Reshape back to [N, L, D]
-    dxkxy = dxkxy_flat.view(N, L, D)
+    # dxkxy: [N, L, D]
+    dxkxy = (
+        -torch.einsum("ijl,ijld->ild", Kxy, diff) +
+        x * sum_kxy.unsqueeze(-1)
+    ) / (h**2)
 
     return Kxy, dxkxy
 
 
-def svgd_gradient(actions, scores, normalize=True):
+def svgd_gradient(actions, scores):
     """
-    Compute SVGD gradient for trajectories.
-    
+    Compute SVGD gradient for trajectory particles using a time-factorized RBF kernel.
+
     Args:
-        actions: [N, L, D] tensor of particles
-        scores: [N, L, D] tensor of gradients of log probability
-        normalize: whether to apply RMS normalization per particle
-    
+        actions: [N, L, D] tensor of particles (normalized action space)
+        scores:  [N, L, D] tensor of ∇_a log p(a | s)
+
     Returns:
         grad: [N, L, D] SVGD gradient
     """
+    # Kxy:   [N, N, L]
+    # dxkxy: [N, L, D]
     Kxy, dxkxy = svgd_kernel(actions)
-
-    # Flatten for matmul
-    N, L, D = actions.shape
-    actions_flat = actions.view(N, -1)
-    scores_flat = scores.view(N, -1)
-    dxkxy_flat = dxkxy.view(N, -1)
-
-    grad_flat = (torch.matmul(Kxy, scores_flat) + dxkxy_flat) / N
-
-    # RMS normalization per particle
-    if normalize:
-        eps = 1e-8
-        grad_flat = grad_flat / (torch.sqrt(grad_flat.pow(2).mean(dim=-1, keepdim=True)) + eps)
-
-    # Reshape back
-    grad = grad_flat.view(N, L, D)
+    N = actions.shape[0]
+    # Score interaction term:
+    # sum_j k(x_j, x_i)_t * score_jt
+    # Result: [N, L, D]
+    score_term = (Kxy.unsqueeze(-1) * scores.unsqueeze(1)).sum(dim=1)
+    # SVGD gradient
+    grad = (score_term + dxkxy) / N
     return grad
 
 
-def svgd_update(actions, obs_dict, policy, n_iter = 10, step_size = 1e-3, alpha = 0.9):
-    x = actions.float()
+def svgd_update(actions, obs_dict, policy, n_iter = 3, step_size = 1e-4, alpha = 0.9):
+    x = policy.normalizer['action'].normalize(actions).float()
+    # Sample noise
+    noise = torch.randn(x.shape, device=x.device, dtype=x.dtype)
+    # sample timestep
+    T = policy.noise_scheduler.config.num_train_timesteps
+    timesteps = torch.randint(
+        int(0.02 * T), int(0.98 * T), 
+        (1,), device=x.device
+    )
+    timesteps = timesteps.expand(x.shape[0]).long()
     # adagrad with momentum
-    historical_grad = 0
+    historical_grad = torch.zeros_like(x)
     for iter in range(n_iter):
         with torch.no_grad():
-            score = policy.compute_score(x, obs_dict).float() 
-        grad = svgd_gradient(x, score, normalize=False)
+            score = policy.compute_score(x, obs_dict, noise, timesteps).float() 
+        grad = svgd_gradient(x, score)
         # adagrad 
         if iter == 0:
             historical_grad = historical_grad + grad ** 2
@@ -97,7 +106,7 @@ def svgd_update(actions, obs_dict, policy, n_iter = 10, step_size = 1e-3, alpha 
             historical_grad = alpha * historical_grad + (1 - alpha) * (grad ** 2)
         adj_grad = grad / (torch.sqrt(historical_grad) + 1e-6)
         x += step_size * adj_grad 
-        
+    x = policy.normalizer['action'].unnormalize(x).float()    
     return x
     
 

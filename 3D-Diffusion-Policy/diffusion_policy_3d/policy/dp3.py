@@ -137,7 +137,7 @@ class DP3(BasePolicy):
         alpha_bar = self.noise_scheduler.alphas_cumprod.to(action.device)[timestep]
         return noisy_action, alpha_bar
 
-    def forward(self, batch, timestep):
+    def forward(self, batch, timestep, noise: torch.Tensor = None):
         # normalize input
         nobs = self.normalizer.normalize(batch['obs'])
         for key, val in nobs.items():
@@ -173,7 +173,7 @@ class DP3(BasePolicy):
             trajectory = cond_data.detach()
 
         # add noise
-        noisy_trajectory, alpha_bar = self.forward_diffusion(trajectory, timestep)
+        noisy_trajectory, alpha_bar = self.forward_diffusion(trajectory, timestep, noise)
         # generate impainting mask
         condition_mask = self.mask_generator(trajectory.shape)
         # compute loss mask
@@ -197,15 +197,15 @@ class DP3(BasePolicy):
         else:
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
-        return mu, trajectory, loss_mask
+        return mu, loss_mask
     
-    def compute_score(self, action, obs_dict):
+    def compute_score(self, normalized_action, obs_dict, noise, timesteps):
         # normalize input
         nobs = self.normalizer.normalize(obs_dict)
         for key, val in nobs.items():
             nobs[key] = val.float()
-        nactions = self.normalizer['action'].normalize(action)
-        nactions = nactions.float()
+        
+        nactions = normalized_action.float()
         
         batch_size = nactions.shape[0]
         horizon = nactions.shape[1]
@@ -234,17 +234,6 @@ class DP3(BasePolicy):
             nobs_features = nobs_features.reshape(batch_size, horizon, -1)
             cond_data = torch.cat([nactions, nobs_features], dim=-1)
             trajectory = cond_data.detach()
-
-        # Sample noise that we'll add to the images
-        noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
-
-        # sample timestep
-        T = self.noise_scheduler.config.num_train_timesteps
-        timesteps = torch.randint(
-            int(0.02 * T), int(0.98 * T), 
-            (1,), device=trajectory.device
-        )
-        timesteps = timesteps.expand(batch_size).long()
 
         # Add noise to the clean images according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
