@@ -82,8 +82,8 @@ def svgd_gradient(actions, scores, normalize=True):
     return grad
 
 
-def svgd_update(actions, obs_dict, policy, n_iter = 10, step_size = 1e-3, bandwidth = -1, alpha = 0.9):
-    x = actions
+def svgd_update(actions, obs_dict, policy, n_iter = 10, step_size = 1e-3, alpha = 0.9):
+    x = actions.float()
     # adagrad with momentum
     historical_grad = 0
     for iter in range(n_iter):

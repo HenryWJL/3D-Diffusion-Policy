@@ -358,7 +358,7 @@ class RobosuiteRunner(BaseRunner):
         all_goal_achieved = []
         all_success_rates = []
         videos = []
-        K = 10
+        K = 5
         
         for episode_idx in tqdm.tqdm(range(self.eval_episodes), desc=f"Eval in Robosuite {self.task_name} Pointcloud Env",
                                      leave=False, mininterval=self.tqdm_interval_sec):
@@ -381,7 +381,7 @@ class RobosuiteRunner(BaseRunner):
                 # Predict K samples
                 with torch.no_grad():
                     result = policy.predict_action(obs_dict)
-                    action_preds = result['action_pred'].float()
+                    action_preds = result['action_pred']
                     # actions = result['action'].float()
                     # score_preds = policy.compute_score(action_preds, obs_dict).float()
                     # start = self.n_obs_steps - 1
