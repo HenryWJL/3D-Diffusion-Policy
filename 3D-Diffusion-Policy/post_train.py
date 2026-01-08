@@ -544,7 +544,7 @@ class TrainDP3Workspace:
         # ------------------------------
         self.optimizer = torch.optim.AdamW(
             params=self.model.parameters(),
-            lr=5e-5,
+            lr=1e-5,
             weight_decay=1e-6,
             betas=(0.95, 0.999)
         )
@@ -631,7 +631,7 @@ class TrainDP3Workspace:
                     loss = loss.mean()
                     loss /= cfg.training.gradient_accumulate_every
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model_ref.parameters(), max_norm=10)
+                    # torch.nn.utils.clip_grad_norm_(model_ref.parameters(), max_norm=10)
                     # step optimizer
                     if self.global_step % cfg.training.gradient_accumulate_every == 0:
                         self.optimizer.step()
