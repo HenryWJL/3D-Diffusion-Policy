@@ -589,15 +589,17 @@ class TrainDP3Workspace:
                         0, self.ema_model.noise_scheduler.config.num_train_timesteps, 
                         (batch_size,), device=self.device
                     ).long()
+                    # sample noise
+                    noise = torch.randn_like(batch['action'])
                     # perturb actions
                     batch_perturbed = copy.deepcopy(batch)
                     alpha_bar = teacher_model.noise_scheduler.alphas_cumprod.to(self.device)[timestep]
                     sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
                     batch_perturbed['action'] += sigma * torch.randn_like(batch_perturbed['action'])
                     # predict means
-                    mu_student, actions_perturbed, _ = model_ref(batch_perturbed, timestep)
+                    mu_student, _ = model_ref(batch_perturbed, timestep, noise)
                     with torch.no_grad():
-                        mu_teacher, actions, loss_mask = teacher_model(batch, timestep)
+                        mu_teacher, loss_mask = teacher_model(batch, timestep, noise)
                         mu_teacher = mu_teacher.detach()
 
                     # weight = (actions - mu_teacher).abs().mean(dim=(1, 2), keepdim=True)
