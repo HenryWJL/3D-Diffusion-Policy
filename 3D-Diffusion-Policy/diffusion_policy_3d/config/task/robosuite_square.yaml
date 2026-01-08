@@ -5,9 +5,9 @@ shape_meta: &shape_meta
     frontview_pc:
       shape: [512, 3]
       type: point_cloud
-    robot0_eye_in_hand_pc:
-      shape: [512, 3]
-      type: point_cloud
+    # robot0_eye_in_hand_pc:
+    #   shape: [512, 3]
+    #   type: point_cloud
     # frontview_pc_mask:
     #   shape: [512]
     # robot0_eye_in_hand_pc_mask:
@@ -18,9 +18,9 @@ shape_meta: &shape_meta
     robot0_eef_quat:
       shape: [4]
       type: low_dim
-    robot0_gripper_qpos:
-      shape: [2]
-      type: low_dim
+    # robot0_gripper_qpos:
+    #   shape: [2]
+    #   type: low_dim
   action:
     shape: [10]
 
@@ -30,7 +30,7 @@ env_runner:
   _target_: diffusion_policy_3d.env_runner.robosuite_runner.RobosuiteRunner
   shape_meta: ${shape_meta}
   eval_episodes: 50
-  max_steps: 300
+  max_steps: 200
   n_obs_steps: ${n_obs_steps}
   n_action_steps: ${n_action_steps}
   abs_action: *abs_action
