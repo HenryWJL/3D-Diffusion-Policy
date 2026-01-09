@@ -199,13 +199,12 @@ class DP3(BasePolicy):
 
         return mu, loss_mask
     
-    def compute_score(self, normalized_action, obs_dict, noise, timesteps):
+    def compute_score(self, action, obs_dict, noise, timesteps):
         # normalize input
         nobs = self.normalizer.normalize(obs_dict)
         for key, val in nobs.items():
             nobs[key] = val.float()
-        
-        nactions = normalized_action.float()
+        nactions = self.normalizer['action'].normalize(action).float()
         
         batch_size = nactions.shape[0]
         horizon = nactions.shape[1]
