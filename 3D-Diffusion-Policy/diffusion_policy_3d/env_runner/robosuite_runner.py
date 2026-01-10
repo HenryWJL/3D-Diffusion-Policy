@@ -358,7 +358,14 @@ class RobosuiteRunner(BaseRunner):
         all_goal_achieved = []
         all_success_rates = []
         videos = []
-        K = 5
+        # sample timesteps
+        T = policy.noise_scheduler.config.num_train_timesteps
+        timesteps = torch.randint(
+            int(0.05 * T), int(0.1 * T), 
+            (1,), device=device
+        ).long()
+        # sample noise
+        noise = torch.randn((1, 16, self.shape_meta['action']['shape'][0]), dtype=torch.float32, device=device)
         
         for episode_idx in tqdm.tqdm(range(self.eval_episodes), desc=f"Eval in Robosuite {self.task_name} Pointcloud Env",
                                      leave=False, mininterval=self.tqdm_interval_sec):
@@ -376,12 +383,21 @@ class RobosuiteRunner(BaseRunner):
                 np_obs_dict = {key: obs[key] for key in self.shape_meta['obs'].keys() if not key.endswith('pc_mask')}
                 # device transfer
                 obs_dict = dict_apply(np_obs_dict,
-                                      lambda x: torch.from_numpy(x).unsqueeze(0).expand(K, *x.shape).to(
+                                      lambda x: torch.from_numpy(x).unsqueeze(0).to(
                                           device=device))
-                # Predict K samples
+                # Predict
                 with torch.no_grad():
                     result = policy.predict_action(obs_dict)
                     action_preds = result['action_pred']
+                    actions = result['action'].squeeze(0)
+                    score_preds = policy.compute_score(action_preds, obs_dict, noise, timesteps)
+                    start = self.n_obs_steps - 1
+                    end = start + self.n_action_steps
+                    scores = score_preds[:, start: end].squeeze(0)
+                    
+                # with torch.no_grad():
+                #     result = policy.predict_action(obs_dict)
+                #     action_preds = result['action_pred']
                     # actions = result['action'].float()
                     # score_preds = policy.compute_score(action_preds, obs_dict).float()
                     # start = self.n_obs_steps - 1
@@ -389,15 +405,44 @@ class RobosuiteRunner(BaseRunner):
                     # scores = score_preds[:, start: end]
                     # grads = svgd_gradient(actions, scores)
                     # actions = actions + 0.01 * grads
-                    action_preds = svgd_update(action_preds, obs_dict, policy)
+                    # action_preds = svgd_update(action_preds, obs_dict, policy)
+                    # start = self.n_obs_steps - 1
+                    # end = start + self.n_action_steps
+                    # actions = action_preds[:, start: end]
+                    # action = actions.mean(dim=0)
+                    # action = action.detach().to('cpu').numpy()
+                # # step env
+                obs, reward, done, info = self.env.step(actions[0].unsqueeze(0).detach().to('cpu').numpy())
+                np_obs_dict = {key: obs[key] for key in self.shape_meta['obs'].keys() if not key.endswith('pc_mask')}
+                # device transfer
+                obs_dict = dict_apply(np_obs_dict,
+                                    lambda x: torch.from_numpy(x).unsqueeze(0).to(
+                                        device=device))
+                for i in range(1, actions.shape[0]):
+                    old_score = scores[i]
+                    action = actions[i].unsqueeze(0).detach().to('cpu').numpy()
+                    padded_action_preds = torch.zeros_like(action_preds)
+                    padded_action_preds[:, :-i] = action_preds[:, i:]
+                    with torch.no_grad():
+                        new_score_preds = policy.compute_score(padded_action_preds, obs_dict, noise, timesteps)
                     start = self.n_obs_steps - 1
                     end = start + self.n_action_steps
-                    actions = action_preds[:, start: end]
-                    action = actions.mean(dim=0)
-                    action = action.detach().to('cpu').numpy()
-                # # step env
-                obs, reward, done, info = self.env.step(action)
-                # all_goal_achieved.append(info['goal_achieved'])
+                    new_scores = new_score_preds[:, start: end].squeeze(0)
+                    new_score = new_scores[0]
+                    # scores[i:] = new_scores[:-i]
+                    div = (torch.sqrt(((new_score - old_score) ** 2).sum())) / self.shape_meta['action']['shape'][0]
+                    # div = ((new_score - old_score) ** 2).mean() / self.shape_meta['action']['shape'][0] ** 2
+                    if div < 100.0:
+                        obs, reward, done, info = self.env.step(action)
+                        np_obs_dict = {key: obs[key] for key in self.shape_meta['obs'].keys() if not key.endswith('pc_mask')}
+                        # device transfer
+                        obs_dict = dict_apply(np_obs_dict,
+                                            lambda x: torch.from_numpy(x).unsqueeze(0).to(
+                                                device=device))
+                    else:
+                        break
+
+                # obs, reward, done, info = self.env.step(action)
                 num_goal_achieved += np.sum(info['is_success'])
                 done = np.all(done)
                 actual_step_count += 1
