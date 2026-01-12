@@ -325,7 +325,11 @@ class ConditionalUnet1D(nn.Module):
                 x = mid_module(x)
 
         # Gating
-        x = x * torch.sigmoid(self.gate_score)
+        gate_soft = torch.sigmoid(self.gate_score)
+        hard = (gate_soft >= 0.5).float()
+        hard = hard.detach() - gate_soft.detach() + gate_soft
+        gate = gate_soft * hard
+        x = x * gate
 
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
             x = torch.cat((x, h.pop()), dim=1)
