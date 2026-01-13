@@ -256,7 +256,7 @@ class ConditionalUnet1D(nn.Module):
         self.down_modules = down_modules
         self.final_conv = final_conv
         # self.gate_score = nn.Parameter(torch.zeros(1, 2048, 4))
-        self.gate_conv = nn.Conv1d(2048, 2048, 1)
+        # self.gate_conv = nn.Conv1d(2048, 2048, 1)
 
         logger.info(
             "number of parameters: %e", sum(p.numel() for p in self.parameters())
@@ -325,9 +325,9 @@ class ConditionalUnet1D(nn.Module):
             else:
                 x = mid_module(x)
 
-        # Gating
-        gate = torch.sigmoid(self.gate_conv(x))
-        x = x * gate
+        # # Gating
+        # gate = torch.sigmoid(self.gate_conv(x))
+        # x = x * gate
         # gate = torch.sigmoid(self.gate_score)
         # x = x * gate
 
