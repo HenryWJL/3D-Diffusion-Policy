@@ -20,26 +20,6 @@ class Upsample1d(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-# class Conv1dBlock(nn.Module):
-#     '''
-#         Conv1d --> GroupNorm --> Mish
-#     '''
-
-#     def __init__(self, inp_channels, out_channels, kernel_size, n_groups=8):
-#         super().__init__()
-
-#         self.block = nn.Sequential(
-#             nn.Conv1d(inp_channels, out_channels, kernel_size, padding=kernel_size // 2),
-#             # Rearrange('batch channels horizon -> batch channels 1 horizon'),
-#             nn.GroupNorm(n_groups, out_channels),
-#             # Rearrange('batch channels 1 horizon -> batch channels horizon'),
-#             nn.Mish(),
-#         )
-
-#     def forward(self, x):
-#         return self.block(x)
-
-# Gated conv
 class Conv1dBlock(nn.Module):
     '''
         Conv1d --> GroupNorm --> Mish
@@ -47,21 +27,41 @@ class Conv1dBlock(nn.Module):
 
     def __init__(self, inp_channels, out_channels, kernel_size, n_groups=8):
         super().__init__()
-        self.conv1d = nn.Conv1d(inp_channels, out_channels, kernel_size, padding=kernel_size // 2)
-        self.mask_conv1d = nn.Conv1d(inp_channels, out_channels, kernel_size, padding=kernel_size // 2)
-        self.activation = nn.Mish()
-        self.norm = nn.GroupNorm(n_groups, out_channels)
 
-    def forward(self, input):
-        x = self.conv1d(input)
-        gate = torch.sigmoid(self.mask_conv1d(input))
-        x = self.activation(x) * gate
-        x = self.norm(x)
-        return x
-        # x = self.activation(self.norm(self.conv1d(input)))
-        # gate = torch.sigmoid(self.mask_conv1d(input))
-        # x = x * gate
-        # return x
+        self.block = nn.Sequential(
+            nn.Conv1d(inp_channels, out_channels, kernel_size, padding=kernel_size // 2),
+            # Rearrange('batch channels horizon -> batch channels 1 horizon'),
+            nn.GroupNorm(n_groups, out_channels),
+            # Rearrange('batch channels 1 horizon -> batch channels horizon'),
+            nn.Mish(),
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+# # Gated conv
+# class Conv1dBlock(nn.Module):
+#     '''
+#         Conv1d --> GroupNorm --> Mish
+#     '''
+
+#     def __init__(self, inp_channels, out_channels, kernel_size, n_groups=8):
+#         super().__init__()
+#         self.conv1d = nn.Conv1d(inp_channels, out_channels, kernel_size, padding=kernel_size // 2)
+#         self.mask_conv1d = nn.Conv1d(inp_channels, out_channels, kernel_size, padding=kernel_size // 2)
+#         self.activation = nn.Mish()
+#         self.norm = nn.GroupNorm(n_groups, out_channels)
+
+#     def forward(self, input):
+#         x = self.conv1d(input)
+#         gate = torch.sigmoid(self.mask_conv1d(input))
+#         x = self.activation(x) * gate
+#         x = self.norm(x)
+#         return x
+#         # x = self.activation(self.norm(self.conv1d(input)))
+#         # gate = torch.sigmoid(self.mask_conv1d(input))
+#         # x = x * gate
+#         # return x
 
 
 def test():
