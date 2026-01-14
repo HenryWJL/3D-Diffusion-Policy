@@ -257,6 +257,18 @@ class ConditionalUnet1D(nn.Module):
         self.final_conv = final_conv
         # self.gate_score = nn.Parameter(torch.zeros(1, 2048, 4))
         # self.gate_conv = nn.Conv1d(2048, 2048, 1)
+        self.gate_convs = nn.ModuleList([
+            ConditionalResidualBlock1D(
+                mid_dim, mid_dim, cond_dim=cond_dim,
+                kernel_size=kernel_size, n_groups=n_groups,
+                condition_type=condition_type
+            ),
+            ConditionalResidualBlock1D(
+                mid_dim, mid_dim, cond_dim=cond_dim,
+                kernel_size=kernel_size, n_groups=n_groups,
+                condition_type=condition_type
+            ),
+        ])
 
         logger.info(
             "number of parameters: %e", sum(p.numel() for p in self.parameters())
@@ -318,12 +330,18 @@ class ConditionalUnet1D(nn.Module):
             h.append(x)
             x = downsample(x)
 
-
+        gate = x
+        for gate_conv in self.gate_convs:
+            if self.use_mid_condition:
+                gate = gate_conv(gate, global_feature)
+            else:
+                gate = gate_conv(gate)
         for mid_module in self.mid_modules:
             if self.use_mid_condition:
                 x = mid_module(x, global_feature)
             else:
                 x = mid_module(x)
+        x = x * torch.sigmoid(gate)
 
         # # Gating
         # gate = torch.sigmoid(self.gate_conv(x))
