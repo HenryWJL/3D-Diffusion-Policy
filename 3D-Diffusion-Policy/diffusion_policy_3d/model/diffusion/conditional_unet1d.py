@@ -504,7 +504,7 @@ class ConditionalUnet1D(nn.Module):
             )
         self.skip_gate = nn.ModuleList([])
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
-            self.gate.append(
+            self.skip_gate.append(
                 nn.Sequential(
                     nn.Mish(),
                     nn.Linear(cond_dim, dim_out),
