@@ -481,7 +481,18 @@ class ConditionalUnet1D(nn.Module):
         self.up_modules = up_modules
         self.down_modules = down_modules
         self.final_conv = final_conv
-        self.gate = nn.ModuleList([])
+        # self.gate = nn.ModuleList([])
+        # for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
+        #     self.gate.append(
+        #         nn.Sequential(
+        #             nn.Mish(),
+        #             nn.Linear(cond_dim, dim_out),
+        #             nn.Sigmoid(),
+        #             Rearrange('b c -> b c 1')
+        #         )
+        #     )
+
+        self.backbone_gate = nn.ModuleList([])
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
             self.gate.append(
                 nn.Sequential(
@@ -491,6 +502,21 @@ class ConditionalUnet1D(nn.Module):
                     Rearrange('b c -> b c 1')
                 )
             )
+        self.skip_gate = nn.ModuleList([])
+        for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
+            self.gate.append(
+                nn.Sequential(
+                    nn.Mish(),
+                    nn.Linear(cond_dim, dim_out),
+                    nn.Sigmoid(),
+                    Rearrange('b c -> b c 1')
+                )
+            )
+
+        # self.backbone_gates = nn.ModuleList([])
+        # self.skip_gates = nn.ModuleList([])
+        # for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
+        #     self.backbone_gates.append(nn.Parameter(torch.zeros(1, dim_out, 4 * (ind + 1))))
 
         logger.info(
             "number of parameters: %e", sum(p.numel() for p in self.parameters())
@@ -560,9 +586,13 @@ class ConditionalUnet1D(nn.Module):
 
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
             res = h.pop()
-            gate_score = self.gate[idx](global_feature)
-            x = x * gate_score
-            res = res * (1.0 - gate_score)
+            # gate_score = self.gate[idx](global_feature)
+            # x = x * gate_score
+            # res = res * (1.0 - gate_score)
+            backbone_gate_score = self.backbone_gate[idx](global_feature)
+            x = x * backbone_gate_score
+            skip_gate_score = self.skip_gate[idx](global_feature)
+            res = res * skip_gate_score
             x = torch.cat((x, res), dim=1)
             if self.use_up_condition:
                 x = resnet(x, global_feature)
