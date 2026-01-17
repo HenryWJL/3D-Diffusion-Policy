@@ -492,25 +492,10 @@ class ConditionalUnet1D(nn.Module):
         #         )
         #     )
 
-        self.backbone_gate = nn.ModuleList([])
+        self.gate = nn.ModuleList([])
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
-            self.backbone_gate.append(
-                nn.Sequential(
-                    nn.Mish(),
-                    nn.Linear(cond_dim, dim_out),
-                    nn.Sigmoid(),
-                    Rearrange('b c -> b c 1')
-                )
-            )
-        self.skip_gate = nn.ModuleList([])
-        for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
-            self.skip_gate.append(
-                nn.Sequential(
-                    nn.Mish(),
-                    nn.Linear(cond_dim, dim_out),
-                    nn.Sigmoid(),
-                    Rearrange('b c -> b c 1')
-                )
+            self.gate.append(
+                nn.Parameter(torch.zeros(1, dim_out, 4 * (ind + 1)))
             )
 
         # self.backbone_gates = nn.ModuleList([])
@@ -586,13 +571,9 @@ class ConditionalUnet1D(nn.Module):
 
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
             res = h.pop()
-            # gate_score = self.gate[idx](global_feature)
-            # x = x * gate_score
-            # res = res * (1.0 - gate_score)
-            backbone_gate_score = self.backbone_gate[idx](global_feature)
-            x = x * backbone_gate_score
-            skip_gate_score = self.skip_gate[idx](global_feature)
-            res = res * skip_gate_score
+            gate_score = self.gate[idx]
+            x = x * gate_score
+            res = res * (1.0 - gate_score)
             x = torch.cat((x, res), dim=1)
             if self.use_up_condition:
                 x = resnet(x, global_feature)
@@ -605,7 +586,6 @@ class ConditionalUnet1D(nn.Module):
                     x = x + h_local[1]
                 x = resnet2(x)
             x = upsample(x)
-
 
         x = self.final_conv(x)
 
