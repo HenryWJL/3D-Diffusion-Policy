@@ -492,7 +492,7 @@ class ConditionalUnet1D(nn.Module):
         #         )
         #     )
 
-        self.gate = nn.ModuleList([])
+        self.gate = nn.ParameterList()
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
             self.gate.append(
                 nn.Parameter(torch.zeros(1, dim_out, 4 * (ind + 1)))
