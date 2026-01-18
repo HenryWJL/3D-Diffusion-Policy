@@ -386,11 +386,6 @@ class FiLMGate(nn.Module):
         # Maps conditioning to FiLM parameters
         self.film = nn.Linear(cond_dim, 2 * in_channels)
 
-        # # Initialize to favor backbone early (sigmoid ≈ 0.88)
-        # nn.init.zeros_(self.film.weight)
-        # nn.init.constant_(self.film.bias[:in_channels],  2.0)   # gamma
-        # nn.init.constant_(self.film.bias[in_channels:],  0.0)   # beta
-
     def forward(self, x: torch.Tensor, cond: torch.Tensor):
         """
         x: (B, C, T)
@@ -398,7 +393,6 @@ class FiLMGate(nn.Module):
         """
         B, C, _ = x.shape
         h = self.conv(x)
-        # h = x.mean(dim=-1, keepdim=True)
 
         # FiLM parameters from conditioning
         gamma, beta = self.film(cond).chunk(2, dim=-1)
@@ -614,8 +608,8 @@ class ConditionalUnet1D(nn.Module):
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
             res = h.pop()
             gate_score = self.gate[idx](x, global_feature)
-            x = x * gate_score
-            res = res * (1.0 - gate_score)
+            x = x * (2.0 - gate_score)
+            res = res * gate_score
             x = torch.cat((x, res), dim=1)
             if self.use_up_condition:
                 x = resnet(x, global_feature)
