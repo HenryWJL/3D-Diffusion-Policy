@@ -371,6 +371,49 @@ class ConditionalResidualBlock1D(nn.Module):
 #         return x
 
 
+class FiLMGate(nn.Module):
+    """
+    FiLM-conditioned gate for diffusion U-Net feature fusion.
+
+    backbone: (B, C, T)
+    cond:     (B, D)   e.g. timestep embedding
+    output:   gate ∈ (B, C, 1)
+    """
+
+    def __init__(self, in_channels: int, cond_dim: int):
+        super().__init__()
+        # self.conv = nn.Conv1d(in_channels, in_channels, 1)
+        # Maps conditioning to FiLM parameters
+        self.film = nn.Sequential(
+            nn.Linear(cond_dim, 2 * in_channels),
+        )
+
+        # Initialize to favor backbone early (sigmoid ≈ 0.88)
+        nn.init.zeros_(self.film.weight)
+        nn.init.constant_(self.film.bias[:in_channels],  2.0)   # gamma
+        nn.init.constant_(self.film.bias[in_channels:],  0.0)   # beta
+
+    def forward(self, x: torch.Tensor, cond: torch.Tensor):
+        """
+        x: (B, C, T)
+        cond:     (B, D)
+        """
+        B, C, _ = x.shape
+        # h = self.conv(x).mean(dim=-1, keepdim=True)
+        h = x.mean(dim=-1, keepdim=True)
+
+        # FiLM parameters from conditioning
+        gamma, beta = self.film(cond).chunk(2, dim=-1)
+        gamma = gamma.view(B, C, 1)
+        beta  = beta.view(B, C, 1)
+
+        # FiLM modulation
+        g = gamma * h + beta  # (B, C, 1)
+
+        # Gate in [0, 1]
+        g = torch.sigmoid(g)
+        return g
+
 
 class ConditionalUnet1D(nn.Module):
     def __init__(self, 
@@ -492,16 +535,17 @@ class ConditionalUnet1D(nn.Module):
         #         )
         #     )
 
-        self.gate = nn.ParameterList()
+        # self.gate = nn.ParameterList()
+        # for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
+        #     self.gate.append(
+        #         nn.Parameter(torch.zeros(1, dim_out, 4 * (ind + 1)))
+        #     )
+
+        self.gate = nn.ModuleList([])
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
             self.gate.append(
-                nn.Parameter(torch.zeros(1, dim_out, 4 * (ind + 1)))
+                FiLMGate(dim_out, cond_dim)
             )
-
-        # self.backbone_gates = nn.ModuleList([])
-        # self.skip_gates = nn.ModuleList([])
-        # for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
-        #     self.backbone_gates.append(nn.Parameter(torch.zeros(1, dim_out, 4 * (ind + 1))))
 
         logger.info(
             "number of parameters: %e", sum(p.numel() for p in self.parameters())
@@ -571,7 +615,7 @@ class ConditionalUnet1D(nn.Module):
 
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
             res = h.pop()
-            gate_score = self.gate[idx]
+            gate_score = self.gate[idx](x, global_feature)
             x = x * gate_score
             res = res * (1.0 - gate_score)
             x = torch.cat((x, res), dim=1)
