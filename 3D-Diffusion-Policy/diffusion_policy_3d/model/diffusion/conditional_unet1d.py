@@ -382,14 +382,14 @@ class FiLMGate(nn.Module):
 
     def __init__(self, in_channels: int, cond_dim: int):
         super().__init__()
-        # self.conv = nn.Conv1d(in_channels, in_channels, 1)
+        self.conv = nn.Conv1d(in_channels, in_channels, 3, padding=1)
         # Maps conditioning to FiLM parameters
         self.film = nn.Linear(cond_dim, 2 * in_channels)
 
-        # Initialize to favor backbone early (sigmoid ≈ 0.88)
-        nn.init.zeros_(self.film.weight)
-        nn.init.constant_(self.film.bias[:in_channels],  2.0)   # gamma
-        nn.init.constant_(self.film.bias[in_channels:],  0.0)   # beta
+        # # Initialize to favor backbone early (sigmoid ≈ 0.88)
+        # nn.init.zeros_(self.film.weight)
+        # nn.init.constant_(self.film.bias[:in_channels],  2.0)   # gamma
+        # nn.init.constant_(self.film.bias[in_channels:],  0.0)   # beta
 
     def forward(self, x: torch.Tensor, cond: torch.Tensor):
         """
@@ -397,8 +397,8 @@ class FiLMGate(nn.Module):
         cond:     (B, D)
         """
         B, C, _ = x.shape
-        # h = self.conv(x).mean(dim=-1, keepdim=True)
-        h = x.mean(dim=-1, keepdim=True)
+        h = self.conv(x)
+        # h = x.mean(dim=-1, keepdim=True)
 
         # FiLM parameters from conditioning
         gamma, beta = self.film(cond).chunk(2, dim=-1)
@@ -406,7 +406,7 @@ class FiLMGate(nn.Module):
         beta  = beta.view(B, C, 1)
 
         # FiLM modulation
-        g = gamma * h + beta  # (B, C, 1)
+        g = gamma * h + beta  # (B, C, T)
 
         # Gate in [0, 1]
         g = torch.sigmoid(g)
