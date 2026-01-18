@@ -384,9 +384,7 @@ class FiLMGate(nn.Module):
         super().__init__()
         # self.conv = nn.Conv1d(in_channels, in_channels, 1)
         # Maps conditioning to FiLM parameters
-        self.film = nn.Sequential(
-            nn.Linear(cond_dim, 2 * in_channels),
-        )
+        self.film = nn.Linear(cond_dim, 2 * in_channels)
 
         # Initialize to favor backbone early (sigmoid ≈ 0.88)
         nn.init.zeros_(self.film.weight)
