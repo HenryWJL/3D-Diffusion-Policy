@@ -371,7 +371,7 @@ class ConditionalResidualBlock1D(nn.Module):
 #         return x
 
 
-class FiLMGate(nn.Module):
+class SpectralGate(nn.Module):
     """
     FiLM-conditioned gate for diffusion U-Net feature fusion.
 
@@ -382,7 +382,7 @@ class FiLMGate(nn.Module):
 
     def __init__(self, in_channels: int, cond_dim: int):
         super().__init__()
-        self.conv = nn.Conv1d(in_channels, in_channels, 3, padding=1)
+        self.gate_conv = nn.Conv1d(in_channels, in_channels, 2, 2, 1)
         # Maps conditioning to FiLM parameters
         self.film = nn.Linear(cond_dim, 2 * in_channels)
 
@@ -391,20 +391,20 @@ class FiLMGate(nn.Module):
         x: (B, C, T)
         cond:     (B, D)
         """
-        B, C, _ = x.shape
-        h = self.conv(x)
-
+        B, C, L = x.shape
+        gate_score = self.gate_conv(x)
         # FiLM parameters from conditioning
         gamma, beta = self.film(cond).chunk(2, dim=-1)
         gamma = gamma.view(B, C, 1)
         beta  = beta.view(B, C, 1)
-
         # FiLM modulation
-        g = gamma * h + beta  # (B, C, T)
-
-        # Gate in [0, 1]
-        g = torch.sigmoid(g)
-        return g
+        gate_score = gamma * gate_score + beta
+        gate_score = torch.sigmoid(gate_score)
+        # FFT
+        x_freq = torch.fft.rfft(x, dim=-1)
+        x_freq = x_freq * (1 + gate_score)
+        y = torch.fft.irfft(x_freq, n=L, dim=-1)
+        return y
 
 
 class ConditionalUnet1D(nn.Module):
@@ -536,7 +536,7 @@ class ConditionalUnet1D(nn.Module):
         self.gate = nn.ModuleList([])
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
             self.gate.append(
-                FiLMGate(dim_out, cond_dim)
+                SpectralGate(dim_out * 2, cond_dim)
             )
 
         logger.info(
@@ -606,11 +606,8 @@ class ConditionalUnet1D(nn.Module):
                 x = mid_module(x)
 
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
-            res = h.pop()
-            gate_score = self.gate[idx](x, global_feature)
-            x = x * (2.0 - gate_score)
-            res = res * gate_score
-            x = torch.cat((x, res), dim=1)
+            x = torch.cat((x, h.pop()), dim=1)
+            x = self.gate[idx](x, global_feature)
             if self.use_up_condition:
                 x = resnet(x, global_feature)
                 if idx == len(self.up_modules) and len(h_local) > 0:
