@@ -370,7 +370,7 @@ class ConditionalResidualBlock1D(nn.Module):
 
 #         return x
 
-
+import torch_dct
 class SpectralGate(nn.Module):
     """
     FiLM-conditioned gate for diffusion U-Net feature fusion.
@@ -382,7 +382,8 @@ class SpectralGate(nn.Module):
 
     def __init__(self, in_channels: int, cond_dim: int):
         super().__init__()
-        self.gate_conv = nn.Conv1d(in_channels, in_channels, 2, 2, 1)
+        # self.gate_conv = nn.Conv1d(in_channels, in_channels, 2, 2, 1)
+        self.gate_conv = nn.Conv1d(in_channels, in_channels, 3, padding=1)
         # Maps conditioning to FiLM parameters
         self.film = nn.Linear(cond_dim, 2 * in_channels)
 
@@ -400,10 +401,14 @@ class SpectralGate(nn.Module):
         # FiLM modulation
         gate_score = gamma * gate_score + beta
         gate_score = torch.sigmoid(gate_score)
-        # FFT
-        x_freq = torch.fft.rfft(x, dim=-1)
-        x_freq = x_freq * (1 + gate_score)
-        y = torch.fft.irfft(x_freq, n=L, dim=-1)
+        # # FFT
+        # x_freq = torch.fft.rfft(x, dim=-1)
+        # x_freq = x_freq * (1 + gate_score)
+        # y = torch.fft.irfft(x_freq, n=L, dim=-1)
+        # DCT
+        dct_coeffs = torch_dct.dct(x, norm='ortho')
+        dct_coeffs = dct_coeffs * gate_score
+        y = torch_dct.idct(dct_coeffs, norm='ortho').to(x.dtype)
         return y
 
 
