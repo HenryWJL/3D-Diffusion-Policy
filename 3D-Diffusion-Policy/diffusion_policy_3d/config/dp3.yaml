@@ -43,25 +43,25 @@ policy:
   n_obs_steps: ${n_obs_steps}
 
   noise_scheduler:
-    _target_: diffusers.schedulers.scheduling_ddim.DDIMScheduler
-    num_train_timesteps: 100
-    beta_start: 0.0001
-    beta_end: 0.02
-    beta_schedule: squaredcos_cap_v2
-    clip_sample: True
-    set_alpha_to_one: True
-    steps_offset: 0
-    prediction_type: sample
-    # _target_: diffusers.schedulers.scheduling_ddpm.DDPMScheduler
+    # _target_: diffusers.schedulers.scheduling_ddim.DDIMScheduler
     # num_train_timesteps: 100
     # beta_start: 0.0001
     # beta_end: 0.02
     # beta_schedule: squaredcos_cap_v2
-    # variance_type: fixed_small # Yilun's paper uses fixed_small_log instead, but easy to cause Nan
-    # clip_sample: True # required when predict_epsilon=False
-    # prediction_type: epsilon # or sample
-  # num_inference_steps: 100  # for ddpm
-  num_inference_steps: 10
+    # clip_sample: True
+    # set_alpha_to_one: True
+    # steps_offset: 0
+    # prediction_type: sample
+    _target_: diffusers.schedulers.scheduling_ddpm.DDPMScheduler
+    num_train_timesteps: 100
+    beta_start: 0.0001
+    beta_end: 0.02
+    beta_schedule: squaredcos_cap_v2
+    variance_type: fixed_small # Yilun's paper uses fixed_small_log instead, but easy to cause Nan
+    clip_sample: True # required when predict_epsilon=False
+    prediction_type: epsilon # or sample
+  num_inference_steps: 100  # for ddpm
+  # num_inference_steps: 10
   obs_as_global_cond: true
   shape_meta: ${shape_meta}
 
