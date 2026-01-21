@@ -463,8 +463,9 @@ class RobosuiteRunner(BaseRunner):
                     # Predict
                     with torch.no_grad():
                         result = policy.predict_action(obs_dict)
+                        normalized_actions = policy.normalizer['action'].normalize(result['action']).squeeze(0).detach().to('cpu').numpy()
                         actions = result['action'].squeeze(0).detach().to('cpu').numpy()
-                        prev_actions = actions
+                        prev_actions = normalized_actions
                 else:
                     # device transfer
                     obs_dict = dict_apply(np_obs_dict,
@@ -473,9 +474,11 @@ class RobosuiteRunner(BaseRunner):
                     # Predict
                     with torch.no_grad():
                         result = policy.predict_action(obs_dict)
+                        normalized_actions = policy.normalizer['action'].normalize(result['action']).detach().to('cpu').numpy()
                         actions = result['action'].detach().to('cpu').numpy()
-                        actions, _ = receding_horizon_select(actions, prev_actions)
-                        prev_actions = actions
+                        best_normalized_actions, best_idx = receding_horizon_select(normalized_actions, prev_actions)
+                        actions = actions[best_idx]
+                        prev_actions = best_normalized_actions
                     
                 # with torch.no_grad():
                 #     result = policy.predict_action(obs_dict)
