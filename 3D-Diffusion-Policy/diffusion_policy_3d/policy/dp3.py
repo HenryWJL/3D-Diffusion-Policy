@@ -8,7 +8,7 @@ from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from termcolor import cprint
 import copy
 import time
-
+import torch_dct
 from diffusion_policy_3d.model.common.normalizer import LinearNormalizer
 from diffusion_policy_3d.policy.base_policy import BasePolicy
 from diffusion_policy_3d.model.diffusion.conditional_unet1d import ConditionalUnet1D
@@ -384,6 +384,7 @@ class DP3(BasePolicy):
         
         # unnormalize prediction
         naction_pred = nsample[...,:Da]
+        naction_pred = torch_dct.idct(naction_pred.transpose(1, 2), norm='ortho').transpose(2, 1)  # New
         action_pred = self.normalizer['action'].unnormalize(naction_pred)
 
         # get action
@@ -420,7 +421,8 @@ class DP3(BasePolicy):
         # handle different ways of passing observation
         local_cond = None
         global_cond = None
-        trajectory = nactions
+        # trajectory = nactions
+        trajectory = torch_dct.dct(nactions.transpose(1, 2), norm='ortho').transpose(2, 1)  # New
         cond_data = trajectory
          
         if self.obs_as_global_cond:
