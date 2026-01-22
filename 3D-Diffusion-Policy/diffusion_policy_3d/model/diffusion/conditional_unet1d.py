@@ -408,13 +408,13 @@ class SpectralGate(nn.Module):
         # FiLM modulation
         gate_score = gamma * gate_score + beta
         gate_score = torch.sigmoid(gate_score)
-        # # RMS Norm
-        # eps = 1e-6
-        # rms_norm = torch.sqrt((gate_score**2).mean(dim=(1, 2), keepdim=True))
-        # gate_score = gate_score / (rms_norm + eps)
+        # RMS Norm
+        eps = 1e-8
+        rms_norm = torch.sqrt((gate_score**2).mean(dim=(1, 2), keepdim=True))
+        gate_score = gate_score / (rms_norm + eps)
         # FFT
         x_freq = torch.fft.rfft(x, dim=-1, norm="ortho")
-        x_freq = x_freq * (1 + gate_score)
+        x_freq = x_freq * (0.5 + gate_score)
         y = torch.fft.irfft(x_freq, n=L, dim=-1, norm="ortho")
         return y
 
@@ -548,7 +548,7 @@ class ConditionalUnet1D(nn.Module):
         self.gate = nn.ModuleList([])
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:])):
             self.gate.append(
-                TemporalGate(dim_out * 2, cond_dim)
+                SpectralGate(dim_out * 2, cond_dim)
             )
 
         logger.info(
