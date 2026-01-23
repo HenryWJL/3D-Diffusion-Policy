@@ -16,6 +16,8 @@ from diffusion_policy_3d.model.diffusion.mask_generator import LowdimMaskGenerat
 from diffusion_policy_3d.common.pytorch_util import dict_apply
 from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
+from diffusion_policy_3d.common.loss_util import SpectralDampingLoss
+
 
 class DP3(BasePolicy):
     def __init__(self, 
@@ -127,6 +129,7 @@ class DP3(BasePolicy):
             num_inference_steps = noise_scheduler.config.num_train_timesteps
         self.num_inference_steps = num_inference_steps
 
+        self.spectral_loss = SpectralDampingLoss()
 
         print_params(self)
 
@@ -499,21 +502,29 @@ class DP3(BasePolicy):
         else:
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
-        loss = F.mse_loss(pred, target, reduction='none')
-        loss = loss * loss_mask.type(loss.dtype)
-        loss = reduce(loss, 'b ... -> b (...)', 'mean')
-        loss = loss.mean()
+        # loss = F.mse_loss(pred, target, reduction='none')
+        # loss = loss * loss_mask.type(loss.dtype)
+        # loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        # loss = loss.mean()
         
+        # loss_dict = {
+        #         'bc_loss': loss.item(),
+        #     }
+
+        bc_loss = F.mse_loss(pred, target, reduction='none')
+        bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
+        bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
+        bc_loss = bc_loss.mean()
+        # Normalize timesteps between 0 and 1
+        timesteps = timesteps / self.noise_scheduler.config.num_train_timesteps
+        # Compute spectral damping loss
+        spectral_loss = self.spectral_loss(pred, target, timesteps)
+        loss = bc_loss + spectral_loss
 
         loss_dict = {
-                'bc_loss': loss.item(),
+                'bc_loss': bc_loss.item(),
+                'spectral_loss': spectral_loss.item()
             }
-
-        # print(f"t2-t1: {t2-t1:.3f}")
-        # print(f"t3-t2: {t3-t2:.3f}")
-        # print(f"t4-t3: {t4-t3:.3f}")
-        # print(f"t5-t4: {t5-t4:.3f}")
-        # print(f"t6-t5: {t6-t5:.3f}")
         
         return loss, loss_dict
 
