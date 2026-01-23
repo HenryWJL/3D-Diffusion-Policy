@@ -628,7 +628,7 @@ class DWT1D(nn.Module):
     Input: (B, C, T) -> Output: (B, 2C, T/2)
     """
     def __init__(self):
-        super(self).__init__()
+        super().__init__()
         self.dwt = DWT1DForward(wave='haar', J=1)
 
     def forward(self, x):
@@ -642,7 +642,7 @@ class IDWT1D(nn.Module):
     Input: (B, 2C, T/2) -> Output: (B, C, T)
     """
     def __init__(self):
-        super(self).__init__()
+        super().__init__()
         self.idwt = DWT1DInverse(wave='haar')
 
     def forward(self, x):
