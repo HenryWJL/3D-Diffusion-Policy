@@ -1,8 +1,52 @@
+import math
 import torch
+import torch.nn as nn
+import torch.fft as fft
 import torch.nn.functional as F
 from torch import Tensor
 from typing import Optional, Literal
 from torch_scatter import scatter_logsumexp
+
+
+class SpectralDampingLoss(nn.Module):
+
+    def __init__(
+        self,
+        alpha: Optional[float] = 20.0,
+        f_min: Optional[float] = 0.06
+    ) -> None:
+        """
+        alpha: Steepness of the sigmoid frequency gate.
+        f_min: Minimum bandwidth fraction (0.0 to 1.0) at t=1 (pure noise).
+               We rarely want 0.0, as the DC component (freq=0) is vital for 
+               basic positioning.
+        """
+        super().__init__()
+        self.alpha = alpha
+        self.f_min = f_min
+
+    def get_weight_mask(self, n_freqs, timesteps, device):
+        # Setup frequency grid (normalized 0 to 1)
+        omega = torch.linspace(0, 1, n_freqs, device=device).unsqueeze(0)  # (1, F)
+        # Cosine schedule: 0.5 * (1 + cos(pi * t)) 
+        # At t=1 (noise): cos(pi) = -1 -> factor = 0 -> cutoff = f_min
+        # At t=0 (clean): cos(0)  =  1 -> factor = 1 -> cutoff = 1.0
+        cosine_factor = 0.5 * (1 + torch.cos(math.pi * timesteps.unsqueeze(-1)))
+        cutoff = self.f_min + (1.0 - self.f_min) * cosine_factor
+        # Create sigmoid mask (soft low-pass filter)
+        mask = torch.sigmoid(self.alpha * (cutoff - omega))   
+        return mask
+
+    def forward(self, pred, target, timesteps):
+        # FFT
+        pred_fft = fft.rfft(pred, dim=1, norm="ortho")
+        true_fft = fft.rfft(target, dim=1, norm="ortho")
+        # Get weight mask
+        mask = self.get_weight_mask(pred_fft.shape[1], timesteps, pred.device)
+        # Weighted loss
+        diff = pred_fft - true_fft
+        loss = torch.mean(torch.abs(diff * mask.unsqueeze(-1)) ** 2)
+        return loss
 
 
 def info_nce_loss(
