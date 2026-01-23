@@ -740,7 +740,7 @@ class ConditionalUnet1D(nn.Module):
             is_last = ind >= (len(in_out) - 1)
             up_modules.append(nn.ModuleList([
                 ConditionalResidualBlock1D(
-                    dim_out*2, dim_in * 2, cond_dim=cond_dim,
+                    dim_out, dim_in * 2, cond_dim=cond_dim,
                     kernel_size=kernel_size, n_groups=n_groups,
                     condition_type=condition_type),
                 ConditionalResidualBlock1D(
@@ -829,7 +829,7 @@ class ConditionalUnet1D(nn.Module):
                 x = mid_module(x)
 
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
-            x = torch.cat((x, h.pop()), dim=1)
+            x = x + h.pop()
             if self.use_up_condition:
                 x = resnet(x, global_feature)
                 if idx == len(self.up_modules) and len(h_local) > 0:
