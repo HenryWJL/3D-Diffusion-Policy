@@ -44,8 +44,8 @@ class SpectralDampingLoss(nn.Module):
         # Get weight mask
         mask = self.get_weight_mask(pred_fft.shape[1], timesteps, pred.device)
         # Weighted loss
-        diff = pred_fft - true_fft
-        loss = torch.mean(torch.abs(diff * mask.unsqueeze(-1)) ** 2)
+        weighted_diff = (pred_fft - true_fft) * mask.unsqueeze(-1)
+        loss = torch.mean(weighted_diff.real**2 + weighted_diff.imag**2)
         return loss
 
 
