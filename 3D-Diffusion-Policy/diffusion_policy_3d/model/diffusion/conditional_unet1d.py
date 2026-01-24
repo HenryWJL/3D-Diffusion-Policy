@@ -934,19 +934,19 @@ class ConditionalUnet1D(nn.Module):
                     condition_type=condition_type)
             ])
 
-        mid_dim = all_dims[-1]
-        self.mid_modules = nn.ModuleList([
-            ConditionalResidualBlock1D(
-                mid_dim, mid_dim, cond_dim=cond_dim,
-                kernel_size=kernel_size, n_groups=n_groups,
-                condition_type=condition_type
-            ),
-            ConditionalResidualBlock1D(
-                mid_dim, mid_dim, cond_dim=cond_dim,
-                kernel_size=kernel_size, n_groups=n_groups,
-                condition_type=condition_type
-            ),
-        ])
+        # mid_dim = all_dims[-1]
+        # self.mid_modules = nn.ModuleList([
+        #     ConditionalResidualBlock1D(
+        #         mid_dim, mid_dim, cond_dim=cond_dim,
+        #         kernel_size=kernel_size, n_groups=n_groups,
+        #         condition_type=condition_type
+        #     ),
+        #     ConditionalResidualBlock1D(
+        #         mid_dim, mid_dim, cond_dim=cond_dim,
+        #         kernel_size=kernel_size, n_groups=n_groups,
+        #         condition_type=condition_type
+        #     ),
+        # ])
 
         down_modules = nn.ModuleList([])
         for ind, (dim_in, dim_out) in enumerate(in_out):
@@ -1053,11 +1053,11 @@ class ConditionalUnet1D(nn.Module):
                 x = xl
                 h.append(xh)
 
-        for mid_module in self.mid_modules:
-            if self.use_mid_condition:
-                x = mid_module(x, global_feature)
-            else:
-                x = mid_module(x)
+        # for mid_module in self.mid_modules:
+        #     if self.use_mid_condition:
+        #         x = mid_module(x, global_feature)
+        #     else:
+        #         x = mid_module(x)
 
         for idx, (resnet, resnet2, upsample) in enumerate(self.up_modules):
             x = torch.cat([x, h.pop()], dim=1)
