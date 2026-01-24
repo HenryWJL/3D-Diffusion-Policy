@@ -502,29 +502,29 @@ class DP3(BasePolicy):
         else:
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
-        loss = F.mse_loss(pred, target, reduction='none')
-        loss = loss * loss_mask.type(loss.dtype)
-        loss = reduce(loss, 'b ... -> b (...)', 'mean')
-        loss = loss.mean()
+        # loss = F.mse_loss(pred, target, reduction='none')
+        # loss = loss * loss_mask.type(loss.dtype)
+        # loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        # loss = loss.mean()
         
-        loss_dict = {
-                'bc_loss': loss.item(),
-            }
-
-        # bc_loss = F.mse_loss(pred, target, reduction='none')
-        # bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
-        # bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
-        # bc_loss = bc_loss.mean()
-        # # Normalize timesteps between 0 and 1
-        # timesteps = timesteps / self.noise_scheduler.config.num_train_timesteps
-        # # Compute spectral damping loss
-        # spectral_loss = self.spectral_loss(pred, target, timesteps)
-        # loss = bc_loss + spectral_loss
-
         # loss_dict = {
-        #         'bc_loss': bc_loss.item(),
-        #         'spectral_loss': spectral_loss.item()
+        #         'bc_loss': loss.item(),
         #     }
+
+        bc_loss = F.mse_loss(pred, target, reduction='none')
+        bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
+        bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
+        bc_loss = bc_loss.mean()
+        # Normalize timesteps between 0 and 1
+        timesteps = timesteps / self.noise_scheduler.config.num_train_timesteps
+        # Compute spectral damping loss
+        spectral_loss = self.spectral_loss(pred, target, timesteps)
+        loss = bc_loss + spectral_loss
+
+        loss_dict = {
+                'bc_loss': bc_loss.item(),
+                'spectral_loss': spectral_loss.item()
+            }
         
         return loss, loss_dict
 
