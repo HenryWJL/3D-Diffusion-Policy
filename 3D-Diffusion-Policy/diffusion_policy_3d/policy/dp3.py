@@ -502,19 +502,23 @@ class DP3(BasePolicy):
         else:
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
-        loss = F.mse_loss(pred, target, reduction='none')
-        loss = loss * loss_mask.type(loss.dtype)
-        loss = reduce(loss, 'b ... -> b (...)', 'mean')
-        loss = loss.mean()
+        # loss = F.mse_loss(pred, target, reduction='none')
+        # loss = loss * loss_mask.type(loss.dtype)
+        # loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        # loss = loss.mean()
         
-        loss_dict = {
-                'bc_loss': loss.item(),
-            }
+        # loss_dict = {
+        #         'bc_loss': loss.item(),
+        #     }
 
-        # bc_loss = F.mse_loss(pred, target, reduction='none')
-        # bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
-        # bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
-        # bc_loss = bc_loss.mean()
+        bc_loss = F.mse_loss(pred, target, reduction='none')
+        bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
+        bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
+        bc_loss = bc_loss.mean()
+        pred_fft = fft.rfft(pred, dim=1, norm="ortho")
+        true_fft = fft.rfft(target, dim=1, norm="ortho")
+        diff = pred_fft - true_fft
+        spectral_loss = torch.mean(diff.real**2 + diff.imag**2)
         # # Normalize timesteps between 0 and 1
         # normalized_timesteps = timesteps / self.noise_scheduler.config.num_train_timesteps
         # # Compute spectral damping loss
@@ -540,12 +544,12 @@ class DP3(BasePolicy):
         #     # Apply only at late timesteps
         #     spectral_loss = (spectral_loss * mask).sum() / mask.sum()
         
-        # loss = bc_loss + 0.1 * spectral_loss
+        loss = bc_loss + spectral_loss
 
-        # loss_dict = {
-        #         'bc_loss': bc_loss.item(),
-        #         'spectral_loss': spectral_loss.item()
-        #     }
+        loss_dict = {
+                'bc_loss': bc_loss.item(),
+                'spectral_loss': spectral_loss.item()
+            }
         
         return loss, loss_dict
 
