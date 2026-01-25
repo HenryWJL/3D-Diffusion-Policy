@@ -520,7 +520,8 @@ class DP3(BasePolicy):
         # Compute spectral damping loss
         t_threshold = 0.2
         alpha_bar = self.noise_scheduler.alphas_cumprod.to(trajectory.device)[timesteps]
-        sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
+        # sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
+        sigma = 1e-3
         # noise_scale = 1e-3
         mask = (normalized_timesteps <= t_threshold).float()
         if mask.sum() == 0:
