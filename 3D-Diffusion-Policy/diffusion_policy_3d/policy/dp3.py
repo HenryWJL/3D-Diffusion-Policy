@@ -337,8 +337,6 @@ class DP3(BasePolicy):
         # normalize input
         nobs = self.normalizer.normalize(obs_dict)
         
-        
-        
         value = next(iter(nobs.values()))
         B, To = value.shape[:2]
         T = self.horizon
@@ -410,7 +408,6 @@ class DP3(BasePolicy):
 
     def compute_loss(self, batch):
         # normalize input
-
         nobs = self.normalizer.normalize(batch['obs'])
         for key, val in nobs.items():
             nobs[key] = val.float()
@@ -453,7 +450,6 @@ class DP3(BasePolicy):
         # Sample noise that we'll add to the images
         noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
 
-        
         bsz = trajectory.shape[0]
         # Sample a random timestep for each image
         timesteps = torch.randint(
@@ -465,8 +461,6 @@ class DP3(BasePolicy):
         # (this is the forward diffusion process)
         noisy_trajectory = self.noise_scheduler.add_noise(
             trajectory, noise, timesteps)
-        
-
 
         # compute loss mask
         loss_mask = ~condition_mask
@@ -475,7 +469,6 @@ class DP3(BasePolicy):
         noisy_trajectory[condition_mask] = cond_data[condition_mask]
 
         # Predict the noise residual
-        
         pred = self.model(sample=noisy_trajectory, 
                         timestep=timesteps, 
                             local_cond=local_cond, 
@@ -552,4 +545,119 @@ class DP3(BasePolicy):
             }
         
         return loss, loss_dict
+    
+
+    # def compute_loss(self, batch):
+    #     # normalize input
+    #     nobs = self.normalizer.normalize(batch['obs'])
+    #     for key, val in nobs.items():
+    #         nobs[key] = val.float()
+    #     nactions = self.normalizer['action'].normalize(batch['action'])
+    #     nactions = nactions.float()
+        
+    #     batch_size = nactions.shape[0]
+    #     horizon = nactions.shape[1]
+
+    #     # handle different ways of passing observation
+    #     local_cond = None
+    #     global_cond = None
+    #     trajectory = nactions
+    #     cond_data = trajectory
+         
+    #     if self.obs_as_global_cond:
+    #         # reshape B, T, ... to B*T
+    #         this_nobs = dict_apply(nobs, 
+    #             lambda x: x[:,:self.n_obs_steps,...].reshape(-1,*x.shape[2:]))
+    #         nobs_features = self.obs_encoder(this_nobs)
+
+    #         if "cross_attention" in self.condition_type:
+    #             # treat as a sequence
+    #             global_cond = nobs_features.reshape(batch_size, self.n_obs_steps, -1)
+    #         else:
+    #             # reshape back to B, Do
+    #             global_cond = nobs_features.reshape(batch_size, -1)
+    #     else:
+    #         # reshape B, T, ... to B*T
+    #         this_nobs = dict_apply(nobs, lambda x: x.reshape(-1, *x.shape[2:]))
+    #         nobs_features = self.obs_encoder(this_nobs)
+    #         # reshape back to B, T, Do
+    #         nobs_features = nobs_features.reshape(batch_size, horizon, -1)
+    #         cond_data = torch.cat([nactions, nobs_features], dim=-1)
+    #         trajectory = cond_data.detach()
+
+    #     # generate impainting mask
+    #     condition_mask = self.mask_generator(trajectory.shape)
+
+    #     # Sample noise that we'll add to the images
+    #     noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
+
+    #     bsz = trajectory.shape[0]
+    #     # Sample a random timestep for each image
+    #     timesteps = torch.randint(
+    #         0, self.noise_scheduler.config.num_train_timesteps, 
+    #         (bsz,), device=trajectory.device
+    #     ).long()
+
+    #     # Add noise to the clean images according to the noise magnitude at each timestep
+    #     # (this is the forward diffusion process)
+    #     noisy_trajectory = self.noise_scheduler.add_noise(
+    #         trajectory, noise, timesteps)
+
+    #     # compute loss mask
+    #     loss_mask = ~condition_mask
+
+    #     # apply conditioning
+    #     noisy_trajectory[condition_mask] = cond_data[condition_mask]
+
+    #     # perturb actions
+    #     alpha_bar = self.noise_scheduler.alphas_cumprod.to(self.device)[timesteps]
+    #     sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
+    #     trajectory_perturbed = trajectory + sigma * torch.randn_like(trajectory)
+    #     noisy_trajectory_perturbed = self.noise_scheduler.add_noise(
+    #         trajectory_perturbed, noise, timesteps)
+
+    #     # Predict the noise residual
+    #     pred = self.model(sample=noisy_trajectory, 
+    #                     timestep=timesteps, 
+    #                         local_cond=local_cond, 
+    #                         global_cond=global_cond)
+
+    #     pred_perturbed = self.model(sample=noisy_trajectory_perturbed, 
+    #                     timestep=timesteps, 
+    #                         local_cond=local_cond, 
+    #                         global_cond=global_cond)
+
+    #     pred_type = self.noise_scheduler.config.prediction_type 
+    #     if pred_type == 'epsilon':
+    #         target = noise
+    #     elif pred_type == 'sample':
+    #         target = trajectory
+    #     elif pred_type == 'v_prediction':
+    #         # https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
+    #         # https://github.com/huggingface/diffusers/blob/v0.11.1-patch/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
+    #         # sigma = self.noise_scheduler.sigmas[timesteps]
+    #         # alpha_t, sigma_t = self.noise_scheduler._sigma_to_alpha_sigma_t(sigma)
+    #         self.noise_scheduler.alpha_t = self.noise_scheduler.alpha_t.to(self.device)
+    #         self.noise_scheduler.sigma_t = self.noise_scheduler.sigma_t.to(self.device)
+    #         alpha_t, sigma_t = self.noise_scheduler.alpha_t[timesteps], self.noise_scheduler.sigma_t[timesteps]
+    #         alpha_t = alpha_t.unsqueeze(-1).unsqueeze(-1)
+    #         sigma_t = sigma_t.unsqueeze(-1).unsqueeze(-1)
+    #         v_t = alpha_t * noise - sigma_t * trajectory
+    #         target = v_t
+    #     else:
+    #         raise ValueError(f"Unsupported prediction type {pred_type}")
+
+    #     bc_loss = F.mse_loss(pred, target, reduction='none')
+    #     bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
+    #     bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
+    #     bc_loss = bc_loss.mean()
+    #     stable_loss = F.mse_loss(pred, pred_perturbed)
+    #     loss = bc_loss + stable_loss
+
+    #     loss_dict = {
+    #             'bc_loss': bc_loss.item(),
+    #             'stable_loss': stable_loss.item()
+    #         }
+        
+    #     return loss, loss_dict
 
