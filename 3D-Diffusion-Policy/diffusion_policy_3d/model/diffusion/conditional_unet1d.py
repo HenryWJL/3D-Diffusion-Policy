@@ -393,10 +393,7 @@ class SpectralGate(nn.Module):
         super().__init__()
         self.gate_conv = nn.Conv1d(in_channels, in_channels, 2, 2, 1)
         # Maps conditioning to FiLM parameters
-        self.film = nn.Sequential(
-            nn.Mish(),
-            nn.Linear(cond_dim, 2 * in_channels)
-        )
+        self.film = nn.Linear(cond_dim, 2 * in_channels)
 
     def forward(self, x: torch.Tensor, cond: torch.Tensor):
         """
