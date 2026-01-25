@@ -535,7 +535,7 @@ class DP3(BasePolicy):
 
             # Jacobian Frobenius proxy
             spectral_loss = F.mse_loss(pred, noisy_pred, reduction='none')
-            spectral_loss = reduce(spectral_loss, 'b ... -> b (...)', 'mean')
+            spectral_loss = spectral_loss.mean(dim=(1,2))
             # Apply only at late timesteps
             spectral_loss = (spectral_loss * mask).sum() / mask.sum()
         
