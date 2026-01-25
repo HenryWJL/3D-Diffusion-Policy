@@ -16,7 +16,7 @@ from diffusion_policy_3d.model.diffusion.mask_generator import LowdimMaskGenerat
 from diffusion_policy_3d.common.pytorch_util import dict_apply
 from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
-from diffusion_policy_3d.common.loss_util import SpectralDampingLoss
+# from diffusion_policy_3d.common.loss_util import SpectralDampingLoss
 
 
 class DP3(BasePolicy):
@@ -129,7 +129,7 @@ class DP3(BasePolicy):
             num_inference_steps = noise_scheduler.config.num_train_timesteps
         self.num_inference_steps = num_inference_steps
 
-        self.spectral_loss = SpectralDampingLoss()
+        # self.spectral_loss = SpectralDampingLoss()
 
         print_params(self)
 
@@ -660,4 +660,3 @@ class DP3(BasePolicy):
     #         }
         
     #     return loss, loss_dict
-
