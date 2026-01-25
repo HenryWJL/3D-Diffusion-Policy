@@ -502,50 +502,50 @@ class DP3(BasePolicy):
         else:
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
-        # loss = F.mse_loss(pred, target, reduction='none')
-        # loss = loss * loss_mask.type(loss.dtype)
-        # loss = reduce(loss, 'b ... -> b (...)', 'mean')
-        # loss = loss.mean()
+        loss = F.mse_loss(pred, target, reduction='none')
+        loss = loss * loss_mask.type(loss.dtype)
+        loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        loss = loss.mean()
         
-        # loss_dict = {
-        #         'bc_loss': loss.item(),
-        #     }
-
-        bc_loss = F.mse_loss(pred, target, reduction='none')
-        bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
-        bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
-        bc_loss = bc_loss.mean()
-        # Normalize timesteps between 0 and 1
-        normalized_timesteps = timesteps / self.noise_scheduler.config.num_train_timesteps
-        # Compute spectral damping loss
-        t_threshold = 0.2
-        # alpha_bar = self.noise_scheduler.alphas_cumprod.to(trajectory.device)[timesteps]
-        # sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
-        sigma = 1e-3
-        # noise_scale = 1e-3
-        mask = (normalized_timesteps <= t_threshold).float()
-        if mask.sum() == 0:
-            spectral_loss = torch.tensor(0.0, device=pred.device)
-        else:
-            # Small perturbation
-            delta = sigma * torch.randn_like(noisy_trajectory)
-            noisy_pred = self.model(sample=noisy_trajectory + delta, 
-                            timestep=timesteps, 
-                                local_cond=local_cond, 
-                                global_cond=global_cond)
-
-            # Jacobian Frobenius proxy
-            spectral_loss = F.mse_loss(pred, noisy_pred, reduction='none')
-            spectral_loss = spectral_loss.mean(dim=(1,2))
-            # Apply only at late timesteps
-            spectral_loss = (spectral_loss * mask).sum() / mask.sum()
-        
-        loss = bc_loss + 0.1 * spectral_loss
-
         loss_dict = {
-                'bc_loss': bc_loss.item(),
-                'spectral_loss': spectral_loss.item()
+                'bc_loss': loss.item(),
             }
+
+        # bc_loss = F.mse_loss(pred, target, reduction='none')
+        # bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
+        # bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
+        # bc_loss = bc_loss.mean()
+        # # Normalize timesteps between 0 and 1
+        # normalized_timesteps = timesteps / self.noise_scheduler.config.num_train_timesteps
+        # # Compute spectral damping loss
+        # t_threshold = 0.2
+        # # alpha_bar = self.noise_scheduler.alphas_cumprod.to(trajectory.device)[timesteps]
+        # # sigma = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)
+        # sigma = 1e-3
+        # # noise_scale = 1e-3
+        # mask = (normalized_timesteps <= t_threshold).float()
+        # if mask.sum() == 0:
+        #     spectral_loss = torch.tensor(0.0, device=pred.device)
+        # else:
+        #     # Small perturbation
+        #     delta = sigma * torch.randn_like(noisy_trajectory)
+        #     noisy_pred = self.model(sample=noisy_trajectory + delta, 
+        #                     timestep=timesteps, 
+        #                         local_cond=local_cond, 
+        #                         global_cond=global_cond)
+
+        #     # Jacobian Frobenius proxy
+        #     spectral_loss = F.mse_loss(pred, noisy_pred, reduction='none')
+        #     spectral_loss = spectral_loss.mean(dim=(1,2))
+        #     # Apply only at late timesteps
+        #     spectral_loss = (spectral_loss * mask).sum() / mask.sum()
+        
+        # loss = bc_loss + 0.1 * spectral_loss
+
+        # loss_dict = {
+        #         'bc_loss': bc_loss.item(),
+        #         'spectral_loss': spectral_loss.item()
+        #     }
         
         return loss, loss_dict
 
