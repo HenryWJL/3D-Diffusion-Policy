@@ -413,9 +413,9 @@ class SpectralGate(nn.Module):
         gate_score = gamma * gate_score + beta
         gate_score = torch.sigmoid(gate_score)
         # FFT
-        x_freq = torch.fft.rfft(x, dim=-1)
+        x_freq = torch.fft.rfft(x, dim=-1, norm="ortho")
         x_freq = x_freq * (1 + gate_score)
-        y = torch.fft.irfft(x_freq, n=L, dim=-1)
+        y = torch.fft.irfft(x_freq, n=L, dim=-1, norm="ortho")
         return y
 
 
