@@ -508,8 +508,8 @@ class DP3(BasePolicy):
         bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
         bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
         bc_loss = bc_loss.mean()
-        pred_fft = fft.rfft(pred, dim=1, norm="ortho")
-        true_fft = fft.rfft(target, dim=1, norm="ortho")
+        pred_fft = torch.fft.rfft(pred, dim=1, norm="ortho")
+        true_fft = torch.fft.rfft(target, dim=1, norm="ortho")
         diff = pred_fft - true_fft
         spectral_loss = torch.mean(diff.real**2 + diff.imag**2)
         # # Normalize timesteps between 0 and 1
