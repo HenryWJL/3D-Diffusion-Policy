@@ -537,7 +537,7 @@ class DP3(BasePolicy):
         #     # Apply only at late timesteps
         #     spectral_loss = (spectral_loss * mask).sum() / mask.sum()
         
-        loss = bc_loss + spectral_loss
+        loss = bc_loss + 0.5 * spectral_loss
 
         loss_dict = {
                 'bc_loss': bc_loss.item(),
