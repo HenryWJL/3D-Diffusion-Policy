@@ -32,15 +32,15 @@ class SpectralDampingLoss(nn.Module):
         # At t=1 (noise): cos(pi) = -1 -> factor = 0 -> cutoff = f_min
         # At t=0 (clean): cos(0)  =  1 -> factor = 1 -> cutoff = 1.0
         cosine_factor = 0.5 * (1 + torch.cos(math.pi * timesteps.unsqueeze(-1)))
-        cutoff = self.f_min + (1.0 - self.f_min) * cosine_factor
+        cutoff = self.f_min + (1.2 - self.f_min) * cosine_factor
         # Create sigmoid mask (soft low-pass filter)
         mask = torch.sigmoid(self.alpha * (cutoff - omega))   
         return mask
 
     def forward(self, pred, target, timesteps):
         # FFT
-        pred_fft = fft.rfft(pred, dim=1, norm="ortho")
-        true_fft = fft.rfft(target, dim=1, norm="ortho")
+        pred_fft = fft.rfft(pred, dim=1)
+        true_fft = fft.rfft(target, dim=1)
         # Get weight mask
         mask = self.get_weight_mask(pred_fft.shape[1], timesteps, pred.device)
         # Weighted loss
