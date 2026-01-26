@@ -39,8 +39,8 @@ class SpectralDampingLoss(nn.Module):
 
     def forward(self, pred, target, timesteps):
         # FFT
-        pred_fft = fft.rfft(pred, dim=1)
-        true_fft = fft.rfft(target, dim=1)
+        pred_fft = fft.rfft(pred, dim=1, norm="ortho")
+        true_fft = fft.rfft(target, dim=1, norm="ortho")
         # Get weight mask
         mask = self.get_weight_mask(pred_fft.shape[1], timesteps, pred.device)
         # Weighted loss
