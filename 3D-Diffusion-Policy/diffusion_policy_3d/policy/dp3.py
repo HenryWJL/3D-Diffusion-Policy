@@ -16,7 +16,7 @@ from diffusion_policy_3d.model.diffusion.mask_generator import LowdimMaskGenerat
 from diffusion_policy_3d.common.pytorch_util import dict_apply
 from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
-# from diffusion_policy_3d.common.loss_util import SpectralDampingLoss
+from diffusion_policy_3d.common.loss_util import SpectralDampingLoss
 
 
 class DP3(BasePolicy):
@@ -129,7 +129,7 @@ class DP3(BasePolicy):
             num_inference_steps = noise_scheduler.config.num_train_timesteps
         self.num_inference_steps = num_inference_steps
 
-        # self.spectral_loss = SpectralDampingLoss()
+        self.spectral_loss = SpectralDampingLoss()
 
         print_params(self)
 
@@ -495,23 +495,22 @@ class DP3(BasePolicy):
         else:
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
-        loss = F.mse_loss(pred, target, reduction='none')
-        loss = loss * loss_mask.type(loss.dtype)
-        loss = reduce(loss, 'b ... -> b (...)', 'mean')
-        loss = loss.mean()
+        # loss = F.mse_loss(pred, target, reduction='none')
+        # loss = loss * loss_mask.type(loss.dtype)
+        # loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        # loss = loss.mean()
         
-        loss_dict = {
-                'bc_loss': loss.item(),
-            }
+        # loss_dict = {
+        #         'bc_loss': loss.item(),
+        #     }
 
-        # bc_loss = F.mse_loss(pred, target, reduction='none')
-        # bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
-        # bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
-        # bc_loss = bc_loss.mean()
-        # pred_fft = torch.fft.rfft(pred, dim=1, norm="ortho")
-        # true_fft = torch.fft.rfft(target, dim=1, norm="ortho")
-        # diff = pred_fft - true_fft
-        # spectral_loss = torch.mean(diff.real**2 + diff.imag**2)
+        bc_loss = F.mse_loss(pred, target, reduction='none')
+        bc_loss = bc_loss * loss_mask.type(bc_loss.dtype)
+        bc_loss = reduce(bc_loss, 'b ... -> b (...)', 'mean')
+        bc_loss = bc_loss.mean()
+        normalized_timesteps = timesteps / self.noise_scheduler.config.num_train_timesteps
+        spectral_loss = self.spectral_loss(pred, target, normalized_timesteps)
+
         # # # Normalize timesteps between 0 and 1
         # # normalized_timesteps = timesteps / self.noise_scheduler.config.num_train_timesteps
         # # # Compute spectral damping loss
@@ -537,12 +536,12 @@ class DP3(BasePolicy):
         # #     # Apply only at late timesteps
         # #     spectral_loss = (spectral_loss * mask).sum() / mask.sum()
         
-        # loss = bc_loss + 0.5 * spectral_loss
+        loss = bc_loss + spectral_loss
 
-        # loss_dict = {
-        #         'bc_loss': bc_loss.item(),
-        #         'spectral_loss': spectral_loss.item()
-        #     }
+        loss_dict = {
+                'bc_loss': bc_loss.item(),
+                'spectral_loss': spectral_loss.item()
+            }
         
         return loss, loss_dict
     
