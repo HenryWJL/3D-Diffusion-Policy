@@ -68,7 +68,7 @@ policy:
     normal_channel: false
 
   prob: 0.2
-  k0_ratio: 0.1
+  k0_ratio: 0.2
 
 ema:
   _target_: diffusion_policy_3d.model.diffusion.ema_model.EMAModel
