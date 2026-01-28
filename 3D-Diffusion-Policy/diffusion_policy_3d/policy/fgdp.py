@@ -36,8 +36,8 @@ def processingpregt_dct(trajectory, prob=0.2, k0_ratio=0.1):
     # ---- 1. Define low-k baseline ----
     k0 = max(1, int(k0_ratio * H))  # avoid degenerate zero case
 
-    # ---- 2. Sample conditional k in [k0, H] ----
-    sampled_k = torch.randint(k0, H + 1, (B,), device=device)
+    # ---- 2. Sample conditional k in [k0 + 1, H] ----
+    sampled_k = torch.randint(k0 + 1, H + 1, (B,), device=device)
 
     # ---- 3. CFG-style dropout mask ----
     # True → unconditional → use k0
