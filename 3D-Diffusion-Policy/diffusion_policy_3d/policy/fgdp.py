@@ -66,6 +66,37 @@ def processingpregt_dct(trajectory, prob=0.2, k0_ratio=0.1):
     return out, core_index
 
 
+def dct_reconstruct(trajectory, index):
+    """
+    trajectory: [B, H, D]
+    """
+    H = trajectory.shape[1]
+    dct_mask = torch.zeros((H,), dtype=torch.float32, device=trajectory.device)
+    dct_mask[:index] = 1.0
+    dct_mask = dct_mask.view(1, 1, H)
+    traj_reshaped = trajectory.transpose(1, 2).to(torch.float64)
+    dct_coeffs = torch_dct.dct(traj_reshaped, norm="ortho")
+    masked_coeffs = dct_coeffs * dct_mask
+    idct_result = torch_dct.idct(masked_coeffs, norm="ortho")
+    out = idct_result.transpose(1, 2).to(trajectory.dtype)
+    return out
+
+
+def k_schedule(t, T, k0, k_max, power=2.0):
+    """
+    t: current diffusion step
+    """
+    frac = (1 - t / T) ** power
+    return int(k0 + frac * (k_max - k0))
+
+
+def alpha_schedule(t, T, power=1.0):
+    """
+    Controls how strongly refinement is applied
+    """
+    return (1 - t / T) ** power
+
+
 class FGDP(BasePolicy):
     def __init__(self, 
             shape_meta: dict,
@@ -195,7 +226,6 @@ class FGDP(BasePolicy):
         model = self.model
         scheduler = self.noise_scheduler
 
-
         trajectory = torch.randn(
             size=condition_data.shape, 
             dtype=condition_data.dtype,
@@ -204,16 +234,30 @@ class FGDP(BasePolicy):
         # set step values
         scheduler.set_timesteps(self.num_inference_steps)
 
+        H = condition_data.shape[1]
+        k0 = max(1, int(H * self.k0_ratio))
+        k_max = H
+        T = scheduler.timesteps.max()
 
         for t in scheduler.timesteps:
             # 1. apply conditioning
             trajectory[condition_mask] = condition_data[condition_mask]
 
+            kt = k_schedule(t, T, k0, k_max)
+            alpha_t = alpha_schedule(t, T)
 
-            pred = model(sample=trajectory,
-                                timestep=t, 
+            trajectory_k0 = dct_reconstruct(trajectory, k0)
+            trajectory_kt = dct_reconstruct(trajectory, kt)
+
+            pred_k0 = model(sample=trajectory_k0,
+                                timestep=t,
+                                index=k0, 
                                 local_cond=local_cond, global_cond=global_cond)
-            
+            pred_kt = model(sample=trajectory_kt,
+                                timestep=t,
+                                index=kt, 
+                                local_cond=local_cond, global_cond=global_cond)
+            pred = (1 - alpha_t) * pred_k0 + alpha_t * pred_kt
             # 3. compute previous image: x_t -> x_t-1
             trajectory = scheduler.step(
                 pred, t, trajectory, ).prev_sample
