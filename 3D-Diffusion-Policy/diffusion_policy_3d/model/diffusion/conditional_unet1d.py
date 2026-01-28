@@ -495,7 +495,7 @@ class ConditionalUnet1D(nn.Module):
         elif torch.is_tensor(indices) and len(indices.shape) == 0:
             indices = indices[None].to(sample.device)
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        indices = indices.expand(sample.shape[0])[:, None]
+        indices = indices.expand(sample.shape[0])[:, None].float()
         index_embed = self.index_encoder(indices)
 
         if global_cond is not None:
