@@ -85,23 +85,23 @@ def dct_reconstruct(trajectory, index):
     return out
 
 
-def k_schedule(t, T, k0, k_max, power=2.0):
-    """
-    t: current diffusion step
-    """
-    frac = (1 - t / T) ** power
-    return torch.round(k0 + frac * (k_max - k0))
+# def k_schedule(t, T, k0, k_max, power=2.0):
+#     """
+#     t: current diffusion step
+#     """
+#     frac = (1 - t / T) ** power
+#     return torch.round(k0 + frac * (k_max - k0))
 
-# def k_schedule(t, T, k0, k_max, beta=9.0):
-#     """
-#     Fast increase early, slow late.
-#     beta controls aggressiveness.
-#     """
-#     s = 1.0 - t / T
-#     s = s.clamp(0.0, 1.0)
-#     frac = torch.log1p(beta * s) / torch.log1p(torch.tensor(beta, device=t.device))
-#     k = k0 + frac * (k_max - k0)
-#     return torch.round(k)
+def k_schedule(t, T, k0, k_max, beta=9.0):
+    """
+    Fast increase early, slow late.
+    beta controls aggressiveness.
+    """
+    s = 1.0 - t / T
+    s = s.clamp(0.0, 1.0)
+    frac = torch.log1p(beta * s) / torch.log1p(torch.tensor(beta, device=t.device))
+    k = k0 + frac * (k_max - k0)
+    return torch.round(k)
 
 # def k_schedule(t, T, k0, k_max, lamb=4.0):
 #     s = 1.0 - t / T
@@ -109,19 +109,19 @@ def k_schedule(t, T, k0, k_max, power=2.0):
 #     k = k_max - (k_max - k0) * torch.exp(-lamb * s)
 #     return torch.round(k)
 
-# def delta_k_schedule(t, T, delta_max=4, delta_min=2):
-#     return torch.round(delta_max * t / T + delta_min)
+def delta_k_schedule(t, T, delta_max=4, delta_min=2):
+    return torch.round(delta_max * (t / T) + delta_min)
 
-# def alpha_schedule(t, T, power=2.0):
-#     """
-#     Controls how strongly refinement is applied
-#     """
-#     return (1 - t / T) ** power
+def alpha_schedule(t, T, power=1.0):
+    """
+    Controls how strongly refinement is applied
+    """
+    return (1 - t / T) ** power
 
-# def alpha_from_k(ks, kl, k0, k_max, gamma=2.0):
-#     frac = (kl - ks) / (k_max - k0)
-#     alpha = frac ** gamma
-#     return alpha
+def alpha_from_k(ks, kl, k0, k_max, gamma=2.0):
+    frac = (kl - ks) / (k_max - k0)
+    alpha = frac ** gamma
+    return alpha
 
 
 class FGDP(BasePolicy):
@@ -266,8 +266,6 @@ class FGDP(BasePolicy):
         k_max = H
         T = scheduler.timesteps.max()
 
-        # k_schedule = k_schedule_list(scheduler.timesteps, scheduler.config.num_train_timesteps, k0, k_max)
-        # k = k_schedule.pop(0)
         for t in scheduler.timesteps:
             # 1. apply conditioning
             trajectory[condition_mask] = condition_data[condition_mask]
@@ -288,31 +286,31 @@ class FGDP(BasePolicy):
             #                     local_cond=local_cond, global_cond=global_cond)
             # pred = (1 - alpha_t) * pred_k0 + alpha_t * pred_kt
 
-            # kc = k_schedule(t, T, k0, k_max)
-            # k_delta = 2
-            # ks = max(kc - k_delta, k0)
-            # kl = min(kc + k_delta, k_max)
-            # alpha_t = alpha_from_k(ks, kl, k0, k_max)
+            kc = k_schedule(t, T, k0, k_max)
+            k_delta = delta_k_schedule(t, T)
+            ks = torch.clamp(kc - k_delta / 2, k0, k_max)
+            kl = torch.clamp(kc + k_delta / 2, k0, k_max)
+            alpha_t = alpha_from_k(ks, kl, k0, k_max)
 
-            # trajectory_ks = dct_reconstruct(trajectory, ks)
-            # trajectory_kl = dct_reconstruct(trajectory, kl)
+            trajectory_ks = dct_reconstruct(trajectory, ks)
+            trajectory_kl = dct_reconstruct(trajectory, kl)
 
-            # pred_ks = model(sample=trajectory_ks,
-            #                     timestep=t,
-            #                     index=ks, 
-            #                     local_cond=local_cond, global_cond=global_cond)
-            # pred_kl = model(sample=trajectory_kl,
-            #                     timestep=t,
-            #                     index=kl, 
-            #                     local_cond=local_cond, global_cond=global_cond)
-            # pred = (1 - alpha_t) * pred_ks + alpha_t * pred_kl
-
-            k = k_schedule(t, T, k0, k_max)
-            trajectory = dct_reconstruct(trajectory, k)
-            pred = model(sample=trajectory,
+            pred_ks = model(sample=trajectory_ks,
                                 timestep=t,
-                                index=k, 
+                                index=ks, 
                                 local_cond=local_cond, global_cond=global_cond)
+            pred_kl = model(sample=trajectory_kl,
+                                timestep=t,
+                                index=kl, 
+                                local_cond=local_cond, global_cond=global_cond)
+            pred = (1 - alpha_t) * pred_ks + alpha_t * pred_kl
+
+            # k = k_schedule(t, T, k0, k_max)
+            # trajectory = dct_reconstruct(trajectory, k)
+            # pred = model(sample=trajectory,
+            #                     timestep=t,
+            #                     index=k, 
+            #                     local_cond=local_cond, global_cond=global_cond)
 
             # 3. compute previous image: x_t -> x_t-1
             trajectory = scheduler.step(
