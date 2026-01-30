@@ -18,15 +18,17 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
-def sample_index(k_min, k_max, batch_size, device, method="skew"):
-    if method == "uniform":
-        k = torch.randint(k_min, k_max + 1, (batch_size,), device=device)
-    elif method == "skew":
-        u = torch.rand(batch_size, device=device)
-        k = k_min + (k_max - k_min) * u ** (1 / 2)
-        k = k.long().clamp(k_min, k_max)
-    else:
-        raise ValueError(f"Unsupported method {method}")
+def sample_index(k_min, k_max, batch_size, device, prob=0.2):
+    mask = torch.rand(batch_size, device=device) < prob
+    u = torch.rand(batch_size, device=device)
+    k = k_min + (k_max - k_min) * u ** (1 / 2)
+    k = k.long()
+    # With a probability @prob, k = k_min
+    k = torch.where(
+        mask,
+        torch.full_like(k, k_min),
+        k
+    )
     return k
 
 
@@ -483,7 +485,8 @@ class FGDP(BasePolicy):
         # Sample a reconstruction index
         k_min = int(self.k0_ratio * horizon)
         k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
-        indices = sample_index(k_min, k_max, batch_size, trajectory.device)
+        k_max = torch.round(k_max)
+        indices = sample_index(k_min, k_max, batch_size, trajectory.device, self.prob)
 
         # Reconstruct the trajectory
         trajectory = dct_reconstruct(trajectory, indices)
