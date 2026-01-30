@@ -378,8 +378,15 @@ class ConditionalUnet1DwIndex(nn.Module):
             nn.Mish(),
             nn.Linear(dsed * 4, dsed),
         )
-        index_encoder = nn.Linear(1, index_embed_dim)
-        cond_dim = dsed + index_embed_dim
+        # index_encoder = nn.Linear(1, index_embed_dim)
+        ied = index_embed_dim
+        index_encoder = nn.Sequential(
+            SinusoidalPosEmb(ied),
+            nn.Linear(ied, ied * 4),
+            nn.Mish(),
+            nn.Linear(ied * 4, ied),
+        )
+        cond_dim = dsed + ied
         if global_cond_dim is not None:
             cond_dim += global_cond_dim
 
@@ -495,7 +502,7 @@ class ConditionalUnet1DwIndex(nn.Module):
         elif torch.is_tensor(indices) and len(indices.shape) == 0:
             indices = indices[None].to(sample.device)
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        indices = indices.expand(sample.shape[0])[:, None].float()
+        indices = indices.expand(sample.shape[0])
         index_embed = self.index_encoder(indices)
 
         if global_cond is not None:
