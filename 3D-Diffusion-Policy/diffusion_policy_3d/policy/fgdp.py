@@ -18,71 +18,104 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
-def processingpregt_dct(trajectory, prob=0.2, k0_ratio=0.1):
-    """
-    CFG-style DCT masking with low-k baseline.
+def sample_index(k_min, k_max, batch_size, device, method="skew"):
+    if method == "uniform":
+        k = torch.randint(k_min, k_max + 1, (batch_size,), device=device)
+    elif method == "skew":
+        u = torch.rand(batch_size, device=device)
+        k = k_min + (k_max - k_min) * u ** (1 / 2)
+        k = k.long().clamp(k_min, k_max)
+    else:
+        raise ValueError(f"Unsupported method {method}")
+    return k
 
-    Args:
-        trajectory: [B, H, D] input action trajectory
-        prob: probability of using unconditional (low-k) baseline
-        k0_ratio: baseline frequency ratio (e.g. 0.2)
-    Returns:
-        out: [B, H, D] processed trajectory
-        core_index: [B] used frequency cutoff indices
-    """
+
+def dct_reconstruct(trajectory, indices):
     B, H, D = trajectory.shape
-    device = trajectory.device
-
-    # ---- 1. Define low-k baseline ----
-    k0 = max(1, int(k0_ratio * H))  # avoid degenerate zero case
-
-    # ---- 2. Sample conditional k in [k0, H] ----
-    sampled_k = torch.randint(k0, H + 1, (B,), device=device)
-
-    # ---- 3. CFG-style dropout mask ----
-    # True → unconditional → use k0
-    cfg_mask = torch.rand(B, device=device) < prob
-    core_index = torch.where(
-        cfg_mask,
-        torch.full_like(sampled_k, k0),
-        sampled_k
-    ).float()
-
-    # ---- 4. DCT transform ----
-    traj_reshaped = trajectory.transpose(1, 2).to(torch.float64)
-    dct_coeffs = torch_dct.dct(traj_reshaped, norm="ortho")
-
-    # ---- 5. Frequency masking ----
-    freq_indices = torch.arange(H, device=device).view(1, 1, H)
-    core_thresholds = core_index.view(B, 1, 1)
-    dct_mask = (freq_indices < core_thresholds).float()
-    dct_mask = dct_mask.expand(B, D, H)
-    masked_coeffs = dct_coeffs * dct_mask
-
-    # ---- 6. Inverse DCT ----
-    idct_result = torch_dct.idct(masked_coeffs, norm="ortho")
-    out = idct_result.transpose(1, 2).to(trajectory.dtype)
-
-    return out, core_index
-
-
-def dct_reconstruct(trajectory, index):
-    """
-    trajectory: [B, H, D]
-    """
-    index = int(index)
-    H = trajectory.shape[1]
     dtype = trajectory.dtype
     device = trajectory.device
-    dct_mask = torch.zeros((H,), dtype=torch.float32, device=device)
-    dct_mask[:index] = 1.0
-    dct_mask = dct_mask.view(1, 1, H).to('cpu')
-    traj_reshaped = trajectory.transpose(1, 2).to('cpu').to(torch.float64)
+    # DCT
+    traj_reshaped = trajectory.transpose(1, 2).to(torch.float64)
     dct_coeffs = torch_dct.dct(traj_reshaped, norm="ortho")
+    # Masking
+    if not torch.is_tensor(indices):
+        indices = torch.tensor([indices], dtype=torch.long)
+    indices = indices.view(B, 1, 1).to(device)
+    freq_indices = torch.arange(H, device=device).view(1, 1, H)
+    dct_mask = (freq_indices < indices).float()
+    dct_mask = dct_mask.expand(B, D, H)
     masked_coeffs = dct_coeffs * dct_mask
-    idct_result = torch_dct.idct(masked_coeffs, norm="ortho")
-    out = idct_result.transpose(1, 2).to(dtype).to(device)
-    return out
+    # Inverse DCT
+    traj_recons = torch_dct.idct(masked_coeffs, norm="ortho")
+    traj_recons = traj_recons.transpose(1, 2).to(dtype)
+    return traj_recons
+
+
+# def processingpregt_dct(trajectory, prob=0.2, k0_ratio=0.1):
+#     """
+#     CFG-style DCT masking with low-k baseline.
+
+#     Args:
+#         trajectory: [B, H, D] input action trajectory
+#         prob: probability of using unconditional (low-k) baseline
+#         k0_ratio: baseline frequency ratio (e.g. 0.2)
+#     Returns:
+#         out: [B, H, D] processed trajectory
+#         core_index: [B] used frequency cutoff indices
+#     """
+#     B, H, D = trajectory.shape
+#     device = trajectory.device
+
+#     # ---- 1. Define low-k baseline ----
+#     k0 = max(1, int(k0_ratio * H))  # avoid degenerate zero case
+
+#     # ---- 2. Sample conditional k in [k0, H] ----
+#     sampled_k = torch.randint(k0, H + 1, (B,), device=device)
+
+#     # ---- 3. CFG-style dropout mask ----
+#     # True → unconditional → use k0
+#     cfg_mask = torch.rand(B, device=device) < prob
+#     core_index = torch.where(
+#         cfg_mask,
+#         torch.full_like(sampled_k, k0),
+#         sampled_k
+#     ).float()
+
+#     # ---- 4. DCT transform ----
+#     traj_reshaped = trajectory.transpose(1, 2).to(torch.float64)
+#     dct_coeffs = torch_dct.dct(traj_reshaped, norm="ortho")
+
+#     # ---- 5. Frequency masking ----
+#     freq_indices = torch.arange(H, device=device).view(1, 1, H)
+#     core_thresholds = core_index.view(B, 1, 1)
+#     dct_mask = (freq_indices < core_thresholds).float()
+#     dct_mask = dct_mask.expand(B, D, H)
+#     masked_coeffs = dct_coeffs * dct_mask
+
+#     # ---- 6. Inverse DCT ----
+#     idct_result = torch_dct.idct(masked_coeffs, norm="ortho")
+#     out = idct_result.transpose(1, 2).to(trajectory.dtype)
+
+#     return out, core_index
+
+
+# def dct_reconstruct(trajectory, index):
+#     """
+#     trajectory: [B, H, D]
+#     """
+#     index = int(index)
+#     H = trajectory.shape[1]
+#     dtype = trajectory.dtype
+#     device = trajectory.device
+#     dct_mask = torch.zeros((H,), dtype=torch.float32, device=device)
+#     dct_mask[:index] = 1.0
+#     dct_mask = dct_mask.view(1, 1, H).to('cpu')
+#     traj_reshaped = trajectory.transpose(1, 2).to('cpu').to(torch.float64)
+#     dct_coeffs = torch_dct.dct(traj_reshaped, norm="ortho")
+#     masked_coeffs = dct_coeffs * dct_mask
+#     idct_result = torch_dct.idct(masked_coeffs, norm="ortho")
+#     out = idct_result.transpose(1, 2).to(dtype).to(device)
+#     return out
 
 
 # def k_schedule(t, T, k0, k_max, power=2.0):
@@ -414,7 +447,7 @@ class FGDP(BasePolicy):
         # handle different ways of passing observation
         local_cond = None
         global_cond = None
-        trajectory, index = processingpregt_dct(nactions, self.prob, self.k0_ratio)
+        trajectory = nactions
         cond_data = trajectory
          
         if self.obs_as_global_cond:
@@ -441,17 +474,24 @@ class FGDP(BasePolicy):
         # generate impainting mask
         condition_mask = self.mask_generator(trajectory.shape)
 
-        # Sample noise that we'll add to the images
-        noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
-
-        bsz = trajectory.shape[0]
-        # Sample a random timestep for each image
+        # Sample a random timestep for each action
         timesteps = torch.randint(
             0, self.noise_scheduler.config.num_train_timesteps, 
-            (bsz,), device=trajectory.device
+            (batch_size,), device=trajectory.device
         ).long()
 
-        # Add noise to the clean images according to the noise magnitude at each timestep
+        # Sample a reconstruction index
+        k_min = int(self.k0_ratio * horizon)
+        k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
+        indices = sample_index(k_min, k_max, batch_size, trajectory.device)
+
+        # Reconstruct the trajectory
+        trajectory = dct_reconstruct(trajectory, indices)
+
+        # Sample noise that we'll add to the actions
+        noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
+
+        # Add noise to the clean actions according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
         noisy_trajectory = self.noise_scheduler.add_noise(
             trajectory, noise, timesteps)
@@ -465,7 +505,7 @@ class FGDP(BasePolicy):
         # Predict the noise residual
         pred = self.model(sample=noisy_trajectory, 
                         timestep=timesteps, 
-                        index=index,
+                        index=indices,
                         local_cond=local_cond, 
                         global_cond=global_cond)
 
