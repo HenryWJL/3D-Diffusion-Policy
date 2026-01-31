@@ -18,12 +18,17 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
-def sample_index(k_min, k_max, batch_size, device, prob=0.2):
-    mask = torch.rand(batch_size, device=device) < prob
-    u = torch.rand(batch_size, device=device)
-    k = k_min + (k_max - k_min) * u ** (1 / 2)
-    k = k.long()
+def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
+    if method == "uniform":
+        k = torch.randint(k_min, k_max + 1, (batch_size,), device=device)
+    elif method == "skew":
+        u = torch.rand(batch_size, device=device)
+        k = k_min + (k_max - k_min) * u ** (1 / 2)
+        k = k.long()
+    else:
+        raise ValueError(f"Unsupported method {method}")
     # With a probability @prob, k = k_min
+    mask = torch.rand(batch_size, device=device) < prob
     k = torch.where(
         mask,
         torch.full_like(k, k_min),
@@ -42,7 +47,9 @@ def dct_reconstruct(trajectory, indices):
     # Masking
     if not torch.is_tensor(indices):
         indices = torch.tensor([indices], dtype=torch.long)
-    indices = indices.view(B, 1, 1).to(device)
+    elif torch.is_tensor(indices) and len(indices.shape) == 0:
+        indices = indices[None]
+    indices = indices.expand(B).view(B, 1, 1).to(device)
     freq_indices = torch.arange(H, device=device).view(1, 1, H)
     dct_mask = (freq_indices < indices).float()
     dct_mask = dct_mask.expand(B, D, H)
@@ -120,23 +127,23 @@ def dct_reconstruct(trajectory, indices):
 #     return out
 
 
-# def k_schedule(t, T, k0, k_max, power=2.0):
-#     """
-#     t: current diffusion step
-#     """
-#     frac = (1 - t / T) ** power
-#     return torch.round(k0 + frac * (k_max - k0))
+def k_schedule(t, T, k0, k_max, power=2.0):
+    """
+    t: current diffusion step
+    """
+    frac = (1 - t / T) ** power
+    return torch.round(k0 + frac * (k_max - k0))
 
-def k_schedule(t, T, k0, k_max, beta=9.0):
-    """
-    Fast increase early, slow late.
-    beta controls aggressiveness.
-    """
-    s = 1.0 - t / T
-    s = s.clamp(0.0, 1.0)
-    frac = torch.log1p(beta * s) / torch.log1p(torch.tensor(beta, device=t.device))
-    k = k0 + frac * (k_max - k0)
-    return torch.round(k)
+# def k_schedule(t, T, k0, k_max, beta=9.0):
+#     """
+#     Fast increase early, slow late.
+#     beta controls aggressiveness.
+#     """
+#     s = 1.0 - t / T
+#     s = s.clamp(0.0, 1.0)
+#     frac = torch.log1p(beta * s) / torch.log1p(torch.tensor(beta, device=t.device))
+#     k = k0 + frac * (k_max - k0)
+#     return torch.round(k)
 
 # def k_schedule(t, T, k0, k_max, lamb=4.0):
 #     s = 1.0 - t / T
@@ -305,40 +312,40 @@ class FGDP(BasePolicy):
             # 1. apply conditioning
             trajectory[condition_mask] = condition_data[condition_mask]
 
-            # kt = k_schedule(t, T, k0, k_max)
-            # alpha_t = alpha_schedule(t, T)
+            kt = k_schedule(t, T, k0, k_max)
+            alpha_t = alpha_schedule(t, T)
 
-            # trajectory_k0 = dct_reconstruct(trajectory, k0)
-            # trajectory_kt = dct_reconstruct(trajectory, kt)
+            trajectory_k0 = dct_reconstruct(trajectory, k0)
+            trajectory_kt = dct_reconstruct(trajectory, kt)
 
-            # pred_k0 = model(sample=trajectory_k0,
-            #                     timestep=t,
-            #                     index=k0, 
-            #                     local_cond=local_cond, global_cond=global_cond)
-            # pred_kt = model(sample=trajectory_kt,
-            #                     timestep=t,
-            #                     index=kt, 
-            #                     local_cond=local_cond, global_cond=global_cond)
-            # pred = (1 - alpha_t) * pred_k0 + alpha_t * pred_kt
-
-            kc = k_schedule(t, T, k0, k_max)
-            k_delta = delta_k_schedule(t, T)
-            ks = torch.clamp(kc - k_delta / 2, k0, k_max)
-            kl = torch.clamp(kc + k_delta / 2, k0, k_max)
-            alpha_t = alpha_from_k(ks, kl, k0, k_max)
-
-            trajectory_ks = dct_reconstruct(trajectory, ks)
-            trajectory_kl = dct_reconstruct(trajectory, kl)
-
-            pred_ks = model(sample=trajectory_ks,
+            pred_k0 = model(sample=trajectory_k0,
                                 timestep=t,
-                                index=ks, 
+                                index=k0, 
                                 local_cond=local_cond, global_cond=global_cond)
-            pred_kl = model(sample=trajectory_kl,
+            pred_kt = model(sample=trajectory_kt,
                                 timestep=t,
-                                index=kl, 
+                                index=kt, 
                                 local_cond=local_cond, global_cond=global_cond)
-            pred = (1 - alpha_t) * pred_ks + alpha_t * pred_kl
+            pred = (1 - alpha_t) * pred_k0 + alpha_t * pred_kt
+
+            # kc = k_schedule(t, T, k0, k_max)
+            # k_delta = delta_k_schedule(t, T)
+            # ks = torch.clamp(kc - k_delta / 2, k0, k_max)
+            # kl = torch.clamp(kc + k_delta / 2, k0, k_max)
+            # alpha_t = alpha_from_k(ks, kl, k0, k_max)
+
+            # trajectory_ks = dct_reconstruct(trajectory, ks)
+            # trajectory_kl = dct_reconstruct(trajectory, kl)
+
+            # pred_ks = model(sample=trajectory_ks,
+            #                     timestep=t,
+            #                     index=ks, 
+            #                     local_cond=local_cond, global_cond=global_cond)
+            # pred_kl = model(sample=trajectory_kl,
+            #                     timestep=t,
+            #                     index=kl, 
+            #                     local_cond=local_cond, global_cond=global_cond)
+            # pred = (1 - alpha_t) * pred_ks + alpha_t * pred_kl
 
             # k = k_schedule(t, T, k0, k_max)
             # trajectory = dct_reconstruct(trajectory, k)
