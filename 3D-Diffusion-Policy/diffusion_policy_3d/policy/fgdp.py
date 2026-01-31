@@ -20,11 +20,11 @@ from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
     if method == "uniform":
-        k = torch.randint(k_min, k_max + 1, (batch_size,), device=device)
+        u = torch.rand(batch_size, device=device)
+        k = k_min + torch.floor((k_max - k_min + 1) * u).long()
     elif method == "skew":
         u = torch.rand(batch_size, device=device)
-        k = k_min + (k_max - k_min) * u ** (1 / 2)
-        k = k.long()
+        k = k_min + torch.floor((k_max - k_min + 1) * u ** 0.5).long()
     else:
         raise ValueError(f"Unsupported method {method}")
     # With a probability @prob, k = k_min
