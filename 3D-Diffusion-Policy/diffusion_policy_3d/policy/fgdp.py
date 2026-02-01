@@ -23,6 +23,9 @@ def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
         u = torch.rand(batch_size, device=device)
         k = k_min + torch.floor((k_max - k_min + 1) * u).long()
     elif method == "skew":
+        # u = torch.rand(batch_size, device=device)
+        # k = k_min + (k_max - k_min) * u ** 0.5
+        # k = k.long()
         u = torch.rand(batch_size, device=device)
         k = k_min + torch.floor((k_max - k_min + 1) * u ** 0.5).long()
     else:
@@ -60,73 +63,6 @@ def dct_reconstruct(trajectory, indices):
     return traj_recons
 
 
-# def processingpregt_dct(trajectory, prob=0.2, k0_ratio=0.1):
-#     """
-#     CFG-style DCT masking with low-k baseline.
-
-#     Args:
-#         trajectory: [B, H, D] input action trajectory
-#         prob: probability of using unconditional (low-k) baseline
-#         k0_ratio: baseline frequency ratio (e.g. 0.2)
-#     Returns:
-#         out: [B, H, D] processed trajectory
-#         core_index: [B] used frequency cutoff indices
-#     """
-#     B, H, D = trajectory.shape
-#     device = trajectory.device
-
-#     # ---- 1. Define low-k baseline ----
-#     k0 = max(1, int(k0_ratio * H))  # avoid degenerate zero case
-
-#     # ---- 2. Sample conditional k in [k0, H] ----
-#     sampled_k = torch.randint(k0, H + 1, (B,), device=device)
-
-#     # ---- 3. CFG-style dropout mask ----
-#     # True → unconditional → use k0
-#     cfg_mask = torch.rand(B, device=device) < prob
-#     core_index = torch.where(
-#         cfg_mask,
-#         torch.full_like(sampled_k, k0),
-#         sampled_k
-#     ).float()
-
-#     # ---- 4. DCT transform ----
-#     traj_reshaped = trajectory.transpose(1, 2).to(torch.float64)
-#     dct_coeffs = torch_dct.dct(traj_reshaped, norm="ortho")
-
-#     # ---- 5. Frequency masking ----
-#     freq_indices = torch.arange(H, device=device).view(1, 1, H)
-#     core_thresholds = core_index.view(B, 1, 1)
-#     dct_mask = (freq_indices < core_thresholds).float()
-#     dct_mask = dct_mask.expand(B, D, H)
-#     masked_coeffs = dct_coeffs * dct_mask
-
-#     # ---- 6. Inverse DCT ----
-#     idct_result = torch_dct.idct(masked_coeffs, norm="ortho")
-#     out = idct_result.transpose(1, 2).to(trajectory.dtype)
-
-#     return out, core_index
-
-
-# def dct_reconstruct(trajectory, index):
-#     """
-#     trajectory: [B, H, D]
-#     """
-#     index = int(index)
-#     H = trajectory.shape[1]
-#     dtype = trajectory.dtype
-#     device = trajectory.device
-#     dct_mask = torch.zeros((H,), dtype=torch.float32, device=device)
-#     dct_mask[:index] = 1.0
-#     dct_mask = dct_mask.view(1, 1, H).to('cpu')
-#     traj_reshaped = trajectory.transpose(1, 2).to('cpu').to(torch.float64)
-#     dct_coeffs = torch_dct.dct(traj_reshaped, norm="ortho")
-#     masked_coeffs = dct_coeffs * dct_mask
-#     idct_result = torch_dct.idct(masked_coeffs, norm="ortho")
-#     out = idct_result.transpose(1, 2).to(dtype).to(device)
-#     return out
-
-
 def k_schedule(t, T, k0, k_max, power=2.0):
     """
     t: current diffusion step
@@ -151,8 +87,15 @@ def k_schedule(t, T, k0, k_max, power=2.0):
 #     k = k_max - (k_max - k0) * torch.exp(-lamb * s)
 #     return torch.round(k)
 
-def delta_k_schedule(t, T, delta_max=4, delta_min=2):
-    return torch.round(delta_max * (t / T) + delta_min)
+# def k_schedule(t, T, k0, k_max, eta=1.2):
+#     s = 1.0 - t / T
+#     s = s.clamp(0.0, 1.0)
+#     frac = ((1 - torch.cos(math.pi * s)) / 2) ** eta
+#     k = k0 + frac * (k_max - k0)
+#     return torch.round(k)
+
+def delta_k_schedule(t, T, delta_max=6, delta_min=2):
+    return torch.round(delta_max * (1 - t / T) + delta_min)
 
 def alpha_schedule(t, T, power=1.0):
     """
