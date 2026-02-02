@@ -18,7 +18,7 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
-def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="skew"):
+def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
     if method == "uniform":
         u = torch.rand(batch_size, device=device)
         k = k_min + torch.floor((k_max - k_min + 1) * u).long()
@@ -63,12 +63,12 @@ def dct_reconstruct(trajectory, indices):
     return traj_recons
 
 
-def k_schedule(t, T, k0, k_max, power=1.0):
-    """
-    t: current diffusion step
-    """
-    frac = (1 - t / T) ** power
-    return torch.round(k0 + frac * (k_max - k0))
+# def k_schedule(t, T, k0, k_max, power=1.0):
+#     """
+#     t: current diffusion step
+#     """
+#     frac = (1 - t / T) ** power
+#     return torch.round(k0 + frac * (k_max - k0))
 
 # def k_schedule(t, T, k0, k_max, beta=9.0):
 #     """
@@ -81,11 +81,11 @@ def k_schedule(t, T, k0, k_max, power=1.0):
 #     k = k0 + frac * (k_max - k0)
 #     return torch.round(k)
 
-# def k_schedule(t, T, k0, k_max, lamb=4.0):
-#     s = 1.0 - t / T
-#     s = s.clamp(0.0, 1.0)
-#     k = k_max - (k_max - k0) * torch.exp(-lamb * s)
-#     return torch.round(k)
+def k_schedule(t, T, k0, k_max, lamb=4.0):
+    s = 1.0 - t / T
+    s = s.clamp(0.0, 1.0)
+    k = k_max - (k_max - k0) * torch.exp(-lamb * s)
+    return torch.round(k)
 
 # def k_schedule(t, T, k0, k_max, eta=1.2):
 #     s = 1.0 - t / T
@@ -97,14 +97,14 @@ def k_schedule(t, T, k0, k_max, power=1.0):
 def delta_k_schedule(t, T, delta_max=6, delta_min=2):
     return torch.round(delta_max * (1 - t / T) + delta_min)
 
-# def alpha_schedule(t, T, power=1.0):
-#     """
-#     Controls how strongly refinement is applied
-#     """
-#     return (1 - t / T) ** power
+def alpha_schedule(t, T, power=2.0):
+    """
+    Controls how strongly refinement is applied
+    """
+    return (1 - t / T) ** power
 
-def alpha_schedule(t, T, lamb=4.0):
-    return 1.0 - torch.exp(-lamb * (1.0 - t / T))
+# def alpha_schedule(t, T, lamb=4.0):
+#     return 1.0 - torch.exp(-lamb * (1.0 - t / T))
 
 def alpha_from_k(ks, kl, k0, k_max, gamma=2.0):
     frac = (kl - ks) / (k_max - k0)
@@ -261,6 +261,16 @@ class FGDP(BasePolicy):
             kt = k_schedule(t, T, k0, k_max)
             alpha_t = alpha_schedule(t, T)
 
+            # k_chunk = torch.concat([torch.tensor([k0], dtype=torch.long, device=kt.device), kt[None]])
+            # trajectory_chunk = dct_reconstruct(trajectory.expand(2, *trajectory.shape[1:]), k_chunk)
+            # if global_cond is not None:
+            #     global_cond = global_cond.expand(2, *global_cond.shape[1:])
+            # pred_chunk = model(sample=trajectory_chunk,
+            #                     timestep=t,
+            #                     index=k_chunk, 
+            #                     local_cond=local_cond, global_cond=global_cond)
+            # pred_k0, pred_kt = pred_chunk.chunk(2, dim=0)
+
             trajectory_k0 = dct_reconstruct(trajectory, k0)
             trajectory_kt = dct_reconstruct(trajectory, kt)
 
@@ -272,7 +282,7 @@ class FGDP(BasePolicy):
                                 timestep=t,
                                 index=kt, 
                                 local_cond=local_cond, global_cond=global_cond)
-            pred = (1 - alpha_t) * pred_k0 + alpha_t * pred_kt
+            pred = ((1 - alpha_t) * pred_k0 + alpha_t * pred_kt)
 
             # kc = k_schedule(t, T, k0, k_max)
             # k_delta = delta_k_schedule(t, T)
