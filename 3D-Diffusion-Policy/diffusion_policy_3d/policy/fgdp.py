@@ -18,7 +18,7 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
-def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
+def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="skew"):
     if method == "uniform":
         u = torch.rand(batch_size, device=device)
         k = k_min + torch.floor((k_max - k_min + 1) * u).long()
@@ -63,7 +63,7 @@ def dct_reconstruct(trajectory, indices):
     return traj_recons
 
 
-def k_schedule(t, T, k0, k_max, power=2.0):
+def k_schedule(t, T, k0, k_max, power=1.0):
     """
     t: current diffusion step
     """
@@ -97,11 +97,14 @@ def k_schedule(t, T, k0, k_max, power=2.0):
 def delta_k_schedule(t, T, delta_max=6, delta_min=2):
     return torch.round(delta_max * (1 - t / T) + delta_min)
 
-def alpha_schedule(t, T, power=1.0):
-    """
-    Controls how strongly refinement is applied
-    """
-    return (1 - t / T) ** power
+# def alpha_schedule(t, T, power=1.0):
+#     """
+#     Controls how strongly refinement is applied
+#     """
+#     return (1 - t / T) ** power
+
+def alpha_schedule(t, T, lamb=4.0):
+    return 1.0 - torch.exp(-lamb * (1.0 - t / T))
 
 def alpha_from_k(ks, kl, k0, k_max, gamma=2.0):
     frac = (kl - ks) / (k_max - k0)
@@ -275,7 +278,8 @@ class FGDP(BasePolicy):
             # k_delta = delta_k_schedule(t, T)
             # ks = torch.clamp(kc - k_delta / 2, k0, k_max)
             # kl = torch.clamp(kc + k_delta / 2, k0, k_max)
-            # alpha_t = alpha_from_k(ks, kl, k0, k_max)
+            # # alpha_t = alpha_from_k(ks, kl, k0, k_max)
+            # alpha_t = alpha_schedule(t, T)
 
             # trajectory_ks = dct_reconstruct(trajectory, ks)
             # trajectory_kl = dct_reconstruct(trajectory, kl)
