@@ -18,6 +18,20 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
+# def sample_index(k_min, k_max, batch_size, device, prob=0.2, alpha=1, beta=1):
+#     u = torch.distributions.Beta(alpha, beta).sample((batch_size,)).to(device)
+#     k = k_min + (k_max - k_min) * u
+#     k = torch.round(k)
+#     # With a probability @prob, k = k_min
+#     mask = torch.rand(batch_size, device=device) < prob
+#     k = torch.where(
+#         mask,
+#         torch.full_like(k, k_min),
+#         k
+#     )
+#     return k
+
+
 def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
     if method == "uniform":
         u = torch.rand(batch_size, device=device)
@@ -63,12 +77,12 @@ def dct_reconstruct(trajectory, indices):
     return traj_recons
 
 
-# def k_schedule(t, T, k0, k_max, power=1.0):
-#     """
-#     t: current diffusion step
-#     """
-#     frac = (1 - t / T) ** power
-#     return torch.round(k0 + frac * (k_max - k0))
+def k_schedule(t, T, k0, k_max, power=1.0):
+    """
+    t: current diffusion step
+    """
+    frac = (1 - t / T) ** power
+    return torch.round(k0 + frac * (k_max - k0))
 
 # def k_schedule(t, T, k0, k_max, beta=9.0):
 #     """
@@ -81,30 +95,41 @@ def dct_reconstruct(trajectory, indices):
 #     k = k0 + frac * (k_max - k0)
 #     return torch.round(k)
 
-def k_schedule(t, T, k0, k_max, lamb=4.0):
-    s = 1.0 - t / T
-    s = s.clamp(0.0, 1.0)
-    k = k_max - (k_max - k0) * torch.exp(-lamb * s)
-    return torch.round(k)
+# def k_schedule(t, T, k0, k_max, lamb=4.0):
+#     s = 1.0 - t / T
+#     s = s.clamp(0.0, 1.0)
+#     k = k_max - (k_max - k0) * torch.exp(-lamb * s)
+#     return torch.round(k)
 
-# def k_schedule(t, T, k0, k_max, eta=1.2):
+# def k_schedule(t, T, k0, k_max, eta=1.0):
 #     s = 1.0 - t / T
 #     s = s.clamp(0.0, 1.0)
 #     frac = ((1 - torch.cos(math.pi * s)) / 2) ** eta
 #     k = k0 + frac * (k_max - k0)
 #     return torch.round(k)
 
-def delta_k_schedule(t, T, delta_max=6, delta_min=2):
-    return torch.round(delta_max * (1 - t / T) + delta_min)
+def dual_k_schedule(t, T, k0, k_max, delta_k_max=6, delta_k_min=2, eta=1.0):
+    kc = k_schedule(t, T, k0, k_max)
+    # delta_k = delta_k_max * (((1 - torch.cos(math.pi * (1.0 - t / T))) / 2) ** eta) + delta_k_min
+    delta_k = delta_k_max * (1 - t/T) + delta_k_min
+    ks = torch.clamp(torch.round(kc - delta_k / 2), k0, k_max)
+    kl = torch.clamp(torch.round(kc + delta_k / 2), k0, k_max)
+    return ks, kl
 
-def alpha_schedule(t, T, power=2.0):
+def alpha_schedule(t, T, alpha_min=0.0, alpha_max=1.0, power=1.0):
     """
     Controls how strongly refinement is applied
     """
+    # frac = (1 - t / T) ** power
+    # return alpha_min + frac * (alpha_max - alpha_min)
     return (1 - t / T) ** power
 
 # def alpha_schedule(t, T, lamb=4.0):
 #     return 1.0 - torch.exp(-lamb * (1.0 - t / T))
+
+# def alpha_schedule(t, T, eta=1.0):
+#     s = 1.0 - t / T
+#     return ((1 - torch.cos(math.pi * s)) / 2) ** eta
 
 def alpha_from_k(ks, kl, k0, k_max, gamma=2.0):
     frac = (kl - ks) / (k_max - k0)
@@ -253,6 +278,7 @@ class FGDP(BasePolicy):
         k0 = max(1, int(H * self.k0_ratio))
         k_max = H
         T = scheduler.timesteps.max()
+        # T = scheduler.config.num_train_timesteps
 
         for t in scheduler.timesteps:
             # 1. apply conditioning
@@ -284,11 +310,7 @@ class FGDP(BasePolicy):
                                 local_cond=local_cond, global_cond=global_cond)
             pred = ((1 - alpha_t) * pred_k0 + alpha_t * pred_kt)
 
-            # kc = k_schedule(t, T, k0, k_max)
-            # k_delta = delta_k_schedule(t, T)
-            # ks = torch.clamp(kc - k_delta / 2, k0, k_max)
-            # kl = torch.clamp(kc + k_delta / 2, k0, k_max)
-            # # alpha_t = alpha_from_k(ks, kl, k0, k_max)
+            # ks, kl = dual_k_schedule(t, T, k0, k_max)
             # alpha_t = alpha_schedule(t, T)
 
             # trajectory_ks = dct_reconstruct(trajectory, ks)
@@ -450,6 +472,10 @@ class FGDP(BasePolicy):
         k_min = int(self.k0_ratio * horizon)
         k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
         k_max = torch.round(k_max)
+        # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
+        # frac = (1 - torch.cos(math.pi * s)) / 2
+        # k_max = k_min + frac * (horizon - k_min)
+        # k_max = torch.round(k_max)
         indices = sample_index(k_min, k_max, batch_size, trajectory.device, self.prob)
 
         # Reconstruct the trajectory
