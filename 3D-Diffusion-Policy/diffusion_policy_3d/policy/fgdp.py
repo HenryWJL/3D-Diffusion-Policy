@@ -35,7 +35,9 @@ from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
     if method == "uniform":
         u = torch.rand(batch_size, device=device)
-        k = k_min + torch.floor((k_max - k_min + 1) * u).long()
+        # k = k_min + torch.floor((k_max - k_min + 1) * u).long()
+        k = k_min + (k_max - k_min) * u
+        k = torch.round(k)
     elif method == "skew":
         # u = torch.rand(batch_size, device=device)
         # k = k_min + (k_max - k_min) * u ** 0.5
@@ -108,13 +110,13 @@ def k_schedule(t, T, k0, k_max, power=1.0):
 #     k = k0 + frac * (k_max - k0)
 #     return torch.round(k)
 
-def dual_k_schedule(t, T, k0, k_max, delta_k_max=6, delta_k_min=2, eta=1.0):
-    kc = k_schedule(t, T, k0, k_max)
-    # delta_k = delta_k_max * (((1 - torch.cos(math.pi * (1.0 - t / T))) / 2) ** eta) + delta_k_min
-    delta_k = delta_k_max * (1 - t/T) + delta_k_min
-    ks = torch.clamp(torch.round(kc - delta_k / 2), k0, k_max)
-    kl = torch.clamp(torch.round(kc + delta_k / 2), k0, k_max)
-    return ks, kl
+# def dual_k_schedule(t, T, k0, k_max, delta_k_max=6, delta_k_min=2, eta=1.0):
+#     kc = k_schedule(t, T, k0, k_max)
+#     # delta_k = delta_k_max * (((1 - torch.cos(math.pi * (1.0 - t / T))) / 2) ** eta) + delta_k_min
+#     delta_k = delta_k_max * (1 - t/T) + delta_k_min
+#     ks = torch.clamp(torch.round(kc - delta_k / 2), k0, k_max)
+#     kl = torch.clamp(torch.round(kc + delta_k / 2), k0, k_max)
+#     return ks, kl
 
 def alpha_schedule(t, T, alpha_min=0.0, alpha_max=1.0, power=1.0):
     """
@@ -131,10 +133,10 @@ def alpha_schedule(t, T, alpha_min=0.0, alpha_max=1.0, power=1.0):
 #     s = 1.0 - t / T
 #     return ((1 - torch.cos(math.pi * s)) / 2) ** eta
 
-def alpha_from_k(ks, kl, k0, k_max, gamma=2.0):
-    frac = (kl - ks) / (k_max - k0)
-    alpha = frac ** gamma
-    return alpha
+# def alpha_from_k(ks, kl, k0, k_max, gamma=2.0):
+#     frac = (kl - ks) / (k_max - k0)
+#     alpha = frac ** gamma
+#     return alpha
 
 
 class FGDP(BasePolicy):
@@ -308,7 +310,7 @@ class FGDP(BasePolicy):
                                 timestep=t,
                                 index=kt, 
                                 local_cond=local_cond, global_cond=global_cond)
-            pred = ((1 - alpha_t) * pred_k0 + alpha_t * pred_kt)
+            pred = (1 - alpha_t) * pred_k0 + alpha_t * pred_kt
 
             # ks, kl = dual_k_schedule(t, T, k0, k_max)
             # alpha_t = alpha_schedule(t, T)
@@ -473,8 +475,7 @@ class FGDP(BasePolicy):
         k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
         k_max = torch.round(k_max)
         # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
-        # frac = (1 - torch.cos(math.pi * s)) / 2
-        # k_max = k_min + frac * (horizon - k_min)
+        # k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
         # k_max = torch.round(k_max)
         indices = sample_index(k_min, k_max, batch_size, trajectory.device, self.prob)
 
@@ -526,6 +527,11 @@ class FGDP(BasePolicy):
         loss = F.mse_loss(pred, target, reduction='none')
         loss = loss * loss_mask.type(loss.dtype)
         loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        # Frequency weighted
+        indices_rel = (indices - k_min) / (horizon - k_min)
+        loss_weight = 1 + torch.cos(math.pi / 2 * indices_rel)
+        loss = loss * loss_weight
+
         loss = loss.mean()
         
         loss_dict = {
