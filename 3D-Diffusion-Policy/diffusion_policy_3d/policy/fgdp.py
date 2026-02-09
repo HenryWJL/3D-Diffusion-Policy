@@ -18,34 +18,10 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
-# def sample_index(k_min, k_max, batch_size, device, prob=0.2, alpha=1, beta=1):
-#     u = torch.distributions.Beta(alpha, beta).sample((batch_size,)).to(device)
-#     k = k_min + (k_max - k_min) * u
-#     k = torch.round(k)
-#     # With a probability @prob, k = k_min
-#     mask = torch.rand(batch_size, device=device) < prob
-#     k = torch.where(
-#         mask,
-#         torch.full_like(k, k_min),
-#         k
-#     )
-#     return k
-
-
-def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
-    if method == "uniform":
-        u = torch.rand(batch_size, device=device)
-        # k = k_min + torch.floor((k_max - k_min + 1) * u).long()
-        k = k_min + (k_max - k_min) * u
-        k = torch.round(k)
-    elif method == "skew":
-        # u = torch.rand(batch_size, device=device)
-        # k = k_min + (k_max - k_min) * u ** 0.5
-        # k = k.long()
-        u = torch.rand(batch_size, device=device)
-        k = k_min + torch.floor((k_max - k_min + 1) * u ** 0.5).long()
-    else:
-        raise ValueError(f"Unsupported method {method}")
+def sample_index(k_min, k_max, batch_size, device, prob=0.2, alpha=2, beta=1):
+    u = torch.distributions.Beta(alpha, beta).sample((batch_size,)).to(device)
+    k = k_min + (k_max - k_min) * u
+    k = torch.round(k)
     # With a probability @prob, k = k_min
     mask = torch.rand(batch_size, device=device) < prob
     k = torch.where(
@@ -54,6 +30,30 @@ def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
         k
     )
     return k
+
+
+# def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
+#     if method == "uniform":
+#         u = torch.rand(batch_size, device=device)
+#         # k = k_min + torch.floor((k_max - k_min + 1) * u).long()
+#         k = k_min + (k_max - k_min) * u
+#         k = torch.round(k)
+#     elif method == "skew":
+#         # u = torch.rand(batch_size, device=device)
+#         # k = k_min + (k_max - k_min) * u ** 0.5
+#         # k = k.long()
+#         u = torch.rand(batch_size, device=device)
+#         k = k_min + torch.floor((k_max - k_min + 1) * u ** 0.5).long()
+#     else:
+#         raise ValueError(f"Unsupported method {method}")
+#     # With a probability @prob, k = k_min
+#     mask = torch.rand(batch_size, device=device) < prob
+#     k = torch.where(
+#         mask,
+#         torch.full_like(k, k_min),
+#         k
+#     )
+#     return k
 
 
 def dct_reconstruct(trajectory, indices):
