@@ -18,34 +18,10 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
-def sample_index(k_min, k_max, batch_size, device, prob=0.2, alpha=2, beta=1):
-    u = torch.distributions.Beta(alpha, beta).sample((batch_size,)).to(device)
-    k = k_min + (k_max - k_min) * u
-    k = torch.round(k)
-    # With a probability @prob, k = k_min
-    mask = torch.rand(batch_size, device=device) < prob
-    k = torch.where(
-        mask,
-        torch.full_like(k, k_min),
-        k
-    )
-    return k
-
-
-# def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
-#     if method == "uniform":
-#         u = torch.rand(batch_size, device=device)
-#         # k = k_min + torch.floor((k_max - k_min + 1) * u).long()
-#         k = k_min + (k_max - k_min) * u
-#         k = torch.round(k)
-#     elif method == "skew":
-#         # u = torch.rand(batch_size, device=device)
-#         # k = k_min + (k_max - k_min) * u ** 0.5
-#         # k = k.long()
-#         u = torch.rand(batch_size, device=device)
-#         k = k_min + torch.floor((k_max - k_min + 1) * u ** 0.5).long()
-#     else:
-#         raise ValueError(f"Unsupported method {method}")
+# def sample_index(k_min, k_max, batch_size, device, prob=0.2, alpha=2, beta=1):
+#     u = torch.distributions.Beta(alpha, beta).sample((batch_size,)).to(device)
+#     k = k_min + (k_max - k_min) * u
+#     k = torch.round(k)
 #     # With a probability @prob, k = k_min
 #     mask = torch.rand(batch_size, device=device) < prob
 #     k = torch.where(
@@ -54,6 +30,30 @@ def sample_index(k_min, k_max, batch_size, device, prob=0.2, alpha=2, beta=1):
 #         k
 #     )
 #     return k
+
+
+def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
+    if method == "uniform":
+        u = torch.rand(batch_size, device=device)
+        # k = k_min + torch.floor((k_max - k_min + 1) * u).long()
+        k = k_min + (k_max - k_min) * u
+        k = torch.round(k)
+    elif method == "skew":
+        # u = torch.rand(batch_size, device=device)
+        # k = k_min + (k_max - k_min) * u ** 0.5
+        # k = k.long()
+        u = torch.rand(batch_size, device=device)
+        k = k_min + torch.floor((k_max - k_min + 1) * u ** 0.5).long()
+    else:
+        raise ValueError(f"Unsupported method {method}")
+    # With a probability @prob, k = k_min
+    mask = torch.rand(batch_size, device=device) < prob
+    k = torch.where(
+        mask,
+        torch.full_like(k, k_min),
+        k
+    )
+    return k
 
 
 def dct_reconstruct(trajectory, indices):
@@ -312,6 +312,23 @@ class FGDP(BasePolicy):
                                 local_cond=local_cond, global_cond=global_cond)
             pred = (1 - alpha_t) * pred_k0 + alpha_t * pred_kt
 
+
+            # ks = k_schedule(t, T, k0, k_max)
+            # kl = torch.clamp(ks + 4, k0, k_max)
+            # alpha_t = alpha_schedule(t, T)
+            # trajectory_ks = dct_reconstruct(trajectory, ks)
+            # trajectory_kl = dct_reconstruct(trajectory, kl)
+            # pred_ks = model(sample=trajectory_ks,
+            #                     timestep=t,
+            #                     index=ks, 
+            #                     local_cond=local_cond, global_cond=global_cond)
+            # pred_kl = model(sample=trajectory_kl,
+            #                     timestep=t,
+            #                     index=kl, 
+            #                     local_cond=local_cond, global_cond=global_cond)
+            # pred = (1 - alpha_t) * pred_ks + alpha_t * pred_kl
+
+
             # ks, kl = dual_k_schedule(t, T, k0, k_max)
             # alpha_t = alpha_schedule(t, T)
 
@@ -472,11 +489,11 @@ class FGDP(BasePolicy):
 
         # Sample a reconstruction index
         k_min = int(self.k0_ratio * horizon)
-        k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
-        k_max = torch.round(k_max)
-        # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
-        # k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
+        # k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
         # k_max = torch.round(k_max)
+        s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
+        k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
+        k_max = torch.round(k_max)
         indices = sample_index(k_min, k_max, batch_size, trajectory.device, self.prob)
 
         # Reconstruct the trajectory
