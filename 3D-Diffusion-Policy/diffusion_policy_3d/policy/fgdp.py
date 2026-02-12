@@ -489,10 +489,10 @@ class FGDP(BasePolicy):
 
         # Sample a reconstruction index
         k_min = int(self.k0_ratio * horizon)
-        k_max = horizon
+        # k_max = horizon
 
-        # k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
-        # k_max = torch.round(k_max)
+        k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
+        k_max = torch.round(k_max)
 
         # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
         # k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
@@ -546,11 +546,14 @@ class FGDP(BasePolicy):
 
         loss = F.mse_loss(pred, target, reduction='none')
         loss = loss * loss_mask.type(loss.dtype)
-        # # Frequency weighted
-        # indices_rel = (indices - k_min) / (horizon - k_min)
-        # loss_weight = 1 + torch.cos(math.pi / 2 * indices_rel)
-        # loss = loss * loss_weight[:, None, None]
-        loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        # loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        # loss = loss.mean()
+
+        # Frequency weighted
+        indices_rel = (indices - k_min) / (horizon - k_min)
+        loss_weight = 1 + torch.sin(math.pi / 2 * indices_rel)
+        loss = reduce(loss, 'b ... -> b', 'mean')
+        loss = loss * loss_weight
         loss = loss.mean()
         
         loss_dict = {
