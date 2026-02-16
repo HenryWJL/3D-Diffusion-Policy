@@ -9,8 +9,8 @@ import torch_dct
 
 
 def mask_by_order(mask_len, order, bsz, seq_len):
-    masking = torch.zeros(bsz, seq_len).cuda()
-    masking = torch.scatter(masking, dim=-1, index=order[:, :mask_len.long()], src=torch.ones(bsz, seq_len).cuda())
+    masking = torch.zeros(bsz, seq_len).to(order.device)
+    masking = torch.scatter(masking, dim=-1, index=order[:, :mask_len.long()], src=torch.ones(bsz, seq_len).to(order.device))
     return masking
 
 
@@ -142,14 +142,14 @@ class Freqpolicy(nn.Module):
             if m.weight is not None:
                 nn.init.constant_(m.weight, 1.0)
 
-    def sample_orders(self, bsz):
+    def sample_orders(self, bsz, device):
         # Generate a batch of random generation orders
         orders = []
         for _ in range(bsz):
             order = np.array(list(range(self.seq_len)))
             np.random.shuffle(order)
             orders.append(order)
-        orders = torch.Tensor(np.array(orders)).cuda().long()
+        orders = torch.Tensor(np.array(orders)).to(device).long()
         return orders
 
     def random_masking(self, x, orders):
@@ -311,7 +311,7 @@ class Freqpolicy(nn.Module):
         # Mask processing
         mask = None
         if self.mask:
-            orders = self.sample_orders(bsz=trajectory.size(0))
+            orders = self.sample_orders(bsz=trajectory.size(0), device=trajectory.device)
             mask = self.random_masking(process_trajectory, orders)
         if loss_weight:
             loss_weight = self.loss_weight 
@@ -336,7 +336,7 @@ class Freqpolicy(nn.Module):
         # Initialize mask, tokens and generation order
         mask = torch.ones(bsz, self.seq_len, device=device, dtype=dtype)
         tokens = torch.zeros(bsz, self.seq_len, self.token_embed_dim, device=device, dtype=dtype)
-        orders = self.sample_orders(bsz)
+        orders = self.sample_orders(bsz, device)
         if self.core is not None:
             latent_core = self.core
 
