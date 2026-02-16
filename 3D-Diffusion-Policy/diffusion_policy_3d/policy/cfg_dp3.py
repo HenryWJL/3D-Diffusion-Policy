@@ -158,10 +158,15 @@ class CFGDP3(BasePolicy):
             # 1. apply conditioning
             trajectory[condition_mask] = condition_data[condition_mask]
 
-
-            pred = model(sample=trajectory,
+            pred_cond = model(sample=trajectory,
                                 timestep=t, 
                                 local_cond=local_cond, global_cond=global_cond)
+
+            pred_uncond = model(sample=trajectory,
+                                timestep=t, 
+                                local_cond=local_cond, global_cond=self.null_obs_cond[None, :])
+            omega = 1.5
+            pred = pred_uncond + omega * (pred_cond - pred_uncond)
             
             # 3. compute previous image: x_t -> x_t-1
             trajectory = scheduler.step(
