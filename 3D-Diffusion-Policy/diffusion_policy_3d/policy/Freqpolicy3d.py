@@ -117,7 +117,7 @@ class Freqpolicy3d(BasePolicy):
             diffloss_d=self.diffloss_d,
             diffloss_w=self.diffloss_w,
             num_iter=self.num_iter,
-            condition_dim=self.point_feature_dim + self.state_mlp_size, #
+            condition_dim=self.point_feature_dim * n_obs_steps + self.state_mlp_size, #
             num_sampling_steps=self.num_sampling_steps,
             diffusion_batch_mul=self.diffusion_batch_mul,
             encoder_embed_dim=encoder_embed_dim,
