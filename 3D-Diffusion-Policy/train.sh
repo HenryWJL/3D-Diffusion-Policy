@@ -3,7 +3,7 @@ torchrun --nproc_per_node=2 train.py --config-name=Freqpolicy.yaml \
                             task.dataset.zarr_path=/kaggle/working/3D-Diffusion-Policy/3D-Diffusion-Policy/data/robosuite_stack.zarr \
                             hf_repo_id="HenryWJL/Freqpolicy" \
                             training.seed=2 \
-                            training.num_epochs=5 \
+                            training.num_epochs=3000 \
                             dataloader.batch_size=224 \
                             dataloader.num_workers=4 \
                             val_dataloader.num_workers=4 \
