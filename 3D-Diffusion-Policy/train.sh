@@ -1,9 +1,9 @@
-!torchrun --nproc_per_node=2 train.py --config-name=Freqpolicy.yaml \
+torchrun --nproc_per_node=2 train.py --config-name=Freqpolicy.yaml \
                             task=robosuite_stack \
                             task.dataset.zarr_path=/kaggle/working/3D-Diffusion-Policy/3D-Diffusion-Policy/data/robosuite_stack.zarr \
                             hf_repo_id="HenryWJL/Freqpolicy" \
                             training.seed=2 \
-                            training.num_epochs=3000 \
+                            training.num_epochs=5 \
                             dataloader.batch_size=224 \
                             dataloader.num_workers=4 \
                             val_dataloader.num_workers=4 \
@@ -15,7 +15,7 @@
                             training.sample_every=4000 \
                             training.checkpoint_every=600
 
-!torchrun --nproc_per_node=2 train.py --config-name=Freqpolicy.yaml \
+torchrun --nproc_per_node=2 train.py --config-name=Freqpolicy.yaml \
                             task=robosuite_square \
                             task.dataset.zarr_path=/kaggle/working/3D-Diffusion-Policy/3D-Diffusion-Policy/data/robosuite_square.zarr \
                             hf_repo_id="HenryWJL/Freqpolicy" \
