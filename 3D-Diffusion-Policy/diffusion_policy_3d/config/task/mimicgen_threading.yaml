@@ -1,4 +1,4 @@
-name: robosuite_threading
+name: mimicgen_threading
 
 shape_meta: &shape_meta
   obs:
