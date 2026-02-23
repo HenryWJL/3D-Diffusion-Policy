@@ -546,15 +546,15 @@ class FGDP(BasePolicy):
 
         loss = F.mse_loss(pred, target, reduction='none')
         loss = loss * loss_mask.type(loss.dtype)
-        # loss = reduce(loss, 'b ... -> b (...)', 'mean')
-        # loss = loss.mean()
-
-        # Frequency weighted
-        indices_rel = (indices - k_min) / (horizon - k_min)
-        loss_weight = 1 + torch.sin(math.pi / 2 * indices_rel)
-        loss = reduce(loss, 'b ... -> b', 'mean')
-        loss = loss * loss_weight
+        loss = reduce(loss, 'b ... -> b (...)', 'mean')
         loss = loss.mean()
+
+        # # Frequency weighted
+        # indices_rel = (indices - k_min) / (horizon - k_min)
+        # loss_weight = 1 + torch.sin(math.pi / 2 * indices_rel)
+        # loss = reduce(loss, 'b ... -> b', 'mean')
+        # loss = loss * loss_weight
+        # loss = loss.mean()
         
         loss_dict = {
                 'bc_loss': loss.item(),
