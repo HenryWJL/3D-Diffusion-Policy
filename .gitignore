@@ -47,3 +47,5 @@ nohup.out
 output/
 data/
 checkpoints/
+*.pt
+*.mp4
