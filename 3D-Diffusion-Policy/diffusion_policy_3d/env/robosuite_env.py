@@ -19,7 +19,8 @@ except ImportError:
         # Due to API Changes in gym>=0.26.0, we need to ensure that the version is correct
         # Please check: https://github.com/openai/gym/releases/tag/0.26.0
         raise ImportError("Please ensure version of gym>=0.26.0 to use the GymWrapper.")
-    
+
+import mimicgen    
 import robosuite as suite
 from omegaconf import ListConfig
 from typing import Optional, Union, Tuple, Literal, List, Dict
