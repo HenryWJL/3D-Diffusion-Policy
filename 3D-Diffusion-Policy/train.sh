@@ -1,20 +1,20 @@
 cd 3D-Diffusion-Policy
 
-python train.py --config-name=dp3.yaml \
-                            task=adroit_hammer \
-                            task.dataset.zarr_path=data/adroit_hammer_expert.zarr \
-                            training.seed=0 \
-                            training.num_epochs=3000 \
-                            dataloader.batch_size=128 \
-                            dataloader.num_workers=8 \
-                            val_dataloader.num_workers=8 \
-                            training.device="cuda" \
-                            logging.mode=online \
-                            checkpoint.save_ckpt=true \
-                            training.rollout_every=10 \
-                            training.val_every=4000 \
-                            training.sample_every=4000 \
-                            training.checkpoint_every=600
+# python train.py --config-name=dp3.yaml \
+#                             task=adroit_hammer \
+#                             task.dataset.zarr_path=data/adroit_hammer_expert.zarr \
+#                             training.seed=0 \
+#                             training.num_epochs=3000 \
+#                             dataloader.batch_size=128 \
+#                             dataloader.num_workers=8 \
+#                             val_dataloader.num_workers=8 \
+#                             training.device="cuda" \
+#                             logging.mode=online \
+#                             checkpoint.save_ckpt=true \
+#                             training.rollout_every=10 \
+#                             training.val_every=4000 \
+#                             training.sample_every=4000 \
+#                             training.checkpoint_every=600
 
 python train.py --config-name=dp3.yaml \
                             task=dexart_bucket \
