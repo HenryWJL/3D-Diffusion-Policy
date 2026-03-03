@@ -1,3 +1,5 @@
+cd 3D-Diffusion-Policy
+
 python train.py --config-name=dp3.yaml \
                             task=adroit_hammer \
                             task.dataset.zarr_path=data/adroit_hammer_expert.zarr \
