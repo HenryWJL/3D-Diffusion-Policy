@@ -49,3 +49,4 @@ data/
 checkpoints/
 *.pt
 *.mp4
+mimicgen/
