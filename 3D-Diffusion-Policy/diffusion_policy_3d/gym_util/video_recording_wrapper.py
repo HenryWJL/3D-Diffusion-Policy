@@ -1,4 +1,7 @@
-import gymnasium as gym
+try:
+    import gym
+except ImportError:
+    import gymnasium as gym
 import numpy as np
 from termcolor import cprint
 

@@ -1,5 +1,9 @@
-import gymnasium as gym
-from gymnasium import spaces
+try:
+    import gym
+    from gym import spaces
+except ImportError:
+    import gymnasium as gym
+    from gymnasium import spaces
 import numpy as np
 import torch
 from collections import defaultdict, deque
