@@ -379,14 +379,19 @@ class DP3Encoder(nn.Module):
                  pointnet_type='pointnet',
                  ):
         super().__init__()
-        self.state_key = [key for key in observation_space.keys() if (key.startswith("robot") and not key.endswith("pc") and not key.endswith("pc_mask"))]
-        self.point_cloud_key = [key for key in observation_space.keys() if key.endswith("pc")]
-        
+        self.state_key = [key for key in observation_space.keys() if (key.startswith("robot") or key.startswith("agent") and not key.endswith("pc") and not key.endswith("pc_mask"))]
+        self.point_cloud_key = [key for key in observation_space.keys() if key.endswith("pc") or key.endswith("point_cloud")]
+        self.use_imagined_robot = 'imagin_robot' in observation_space.keys()
         self.point_cloud_shape = observation_space[self.point_cloud_key[0]]
         self.state_shape = [sum(observation_space[key][0] for key in self.state_key)]
-        
+        if self.use_imagined_robot:
+            self.imagination_shape = observation_space['imagin_robot']
+        else:
+            self.imagination_shape = None       
+ 
         cprint(f"[DP3Encoder] point cloud shape: {self.point_cloud_shape}", "yellow")
         cprint(f"[DP3Encoder] state shape: {self.state_shape}", "yellow")
+        cprint(f"[DP3Encoder] imagination point shape: {self.imagination_shape}", "yellow")
 
         self.use_pc_color = use_pc_color
         self.pointnet_type = pointnet_type
@@ -418,9 +423,15 @@ class DP3Encoder(nn.Module):
 
 
     def forward(self, observations: Dict) -> torch.Tensor:
-        pn_feat = torch.cat([
-            self.extractor[key](observations[key]) for key in self.point_cloud_key
-        ], dim=-1)    
+        if self.use_imagined_robot:
+            points = observations['point_cloud'] if self.use_pc_color else observations['point_cloud'][..., :3]
+            img_points = observations['imagin_robot'][..., :points.shape[-1]] # align the last dim
+            points = torch.concat([points, img_points], dim=1)
+            pn_feat = self.extractor['point_cloud'](points)
+        else:
+            pn_feat = torch.cat([
+                self.extractor[key](observations[key] if self.use_pc_color else observations[key][..., :3]) for key in self.point_cloud_key
+            ], dim=-1)    
         state = torch.cat([observations[key] for key in self.state_key], dim=-1)
         state_feat = self.state_mlp(state)  # B * 64
         final_feat = torch.cat([pn_feat, state_feat], dim=-1)
