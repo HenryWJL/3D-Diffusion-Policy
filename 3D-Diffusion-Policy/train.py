@@ -177,15 +177,15 @@ class TrainDP3Workspace:
         
         RUN_VALIDATION = False # reduce time cost
 
-        # if self.local_rank == 0:
-        #     # configure env
-        #     env_runner: BaseRunner
-        #     env_runner = hydra.utils.instantiate(
-        #         cfg.task.env_runner,
-        #         output_dir=self.output_dir)
+        if self.local_rank == 0:
+            # configure env
+            env_runner: BaseRunner
+            env_runner = hydra.utils.instantiate(
+                cfg.task.env_runner,
+                output_dir=self.output_dir)
 
-        #     if env_runner is not None:
-        #         assert isinstance(env_runner, BaseRunner)
+            if env_runner is not None:
+                assert isinstance(env_runner, BaseRunner)
             
         #     # configure logging
         #     cfg.logging.name = str(cfg.logging.name)
@@ -296,18 +296,18 @@ class TrainDP3Workspace:
 
             # ========= eval for this epoch ==========
             if self.local_rank == 0:
-                # policy = self.ema_model if cfg.training.use_ema else model_ref
-                # policy.eval()
+                policy = self.ema_model if cfg.training.use_ema else model_ref
+                policy.eval()
 
-                # # run rollout
-                # if (self.epoch % cfg.training.rollout_every) == 0 and RUN_ROLLOUT and env_runner is not None:
-                #     t3 = time.time()
-                #     # runner_log = env_runner.run(policy, dataset=dataset)
-                #     runner_log = env_runner.run(policy)
-                #     t4 = time.time()
-                #     # print(f"rollout time: {t4-t3:.3f}")
-                #     # log all
-                #     step_log.update(runner_log)
+                # run rollout
+                if (self.epoch % cfg.training.rollout_every) == 0 and RUN_ROLLOUT and env_runner is not None:
+                    t3 = time.time()
+                    # runner_log = env_runner.run(policy, dataset=dataset)
+                    runner_log = env_runner.run(policy)
+                    t4 = time.time()
+                    # print(f"rollout time: {t4-t3:.3f}")
+                    # log all
+                    step_log.update(runner_log)
 
                 # # run validation
                 # if (self.epoch % cfg.training.val_every) == 0 and RUN_VALIDATION:
