@@ -2,7 +2,7 @@ import wandb
 import numpy as np
 import torch
 import tqdm
-from diffusion_policy_3d.env import AdroitEnv
+from diffusion_policy_3d.env.adroit.adroit import AdroitEnv
 from diffusion_policy_3d.gym_util.mjpc_diffusion_wrapper import MujocoPointcloudWrapperAdroit
 from diffusion_policy_3d.gym_util.multistep_wrapper import MultiStepWrapper
 from diffusion_policy_3d.gym_util.video_recording_wrapper import SimpleVideoRecordingWrapper

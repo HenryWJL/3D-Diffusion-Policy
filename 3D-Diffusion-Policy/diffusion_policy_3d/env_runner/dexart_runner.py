@@ -4,7 +4,7 @@ import torch
 import collections
 import tqdm
 from termcolor import cprint
-from diffusion_policy_3d.env import DexArtEnv
+from diffusion_policy_3d.env.dexart.dexart_wrapper import DexArtEnv
 from diffusion_policy_3d.gym_util.multistep_wrapper import MultiStepWrapper
 from diffusion_policy_3d.gym_util.video_recording_wrapper import SimpleVideoRecordingWrapper
 
