@@ -62,7 +62,7 @@ class Freqpolicy3d(BasePolicy):
         
         obs_shape_meta = shape_meta['obs']
         obs_dict = dict_apply(obs_shape_meta, lambda x: x['shape'])
-
+        num_pc_obs = len([key for key in obs_shape_meta.keys() if key.endswith('pc') or key.endswith('point_cloud')])
 
         obs_encoder = DP3Encoder(observation_space=obs_dict,
                                                 img_crop_shape=crop_shape,
@@ -117,7 +117,7 @@ class Freqpolicy3d(BasePolicy):
             diffloss_d=self.diffloss_d,
             diffloss_w=self.diffloss_w,
             num_iter=self.num_iter,
-            condition_dim=self.point_feature_dim * n_obs_steps + self.state_mlp_size, #
+            condition_dim=self.point_feature_dim * num_pc_obs + self.state_mlp_size,
             num_sampling_steps=self.num_sampling_steps,
             diffusion_batch_mul=self.diffusion_batch_mul,
             encoder_embed_dim=encoder_embed_dim,
