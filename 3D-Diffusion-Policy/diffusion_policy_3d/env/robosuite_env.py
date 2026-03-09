@@ -8,17 +8,13 @@ import fpsample
 import numpy as np
 
 try:
-    import gymnasium as gym
-    from gymnasium import spaces
-except ImportError:
-    # Most APIs between gym and gymnasium are compatible
-    print("WARNING! gymnasium is not installed. We will try to use openai gym instead.")
     import gym
     from gym import spaces
-    if not gym.__version__ >= "0.26.0":
-        # Due to API Changes in gym>=0.26.0, we need to ensure that the version is correct
-        # Please check: https://github.com/openai/gym/releases/tag/0.26.0
-        raise ImportError("Please ensure version of gym>=0.26.0 to use the GymWrapper.")
+except ImportError:
+    # Most APIs between gym and gymnasium are compatible
+    print("WARNING! openai gym is not installed. We will try to use gymnasium instead.")
+    import gymnasium as gym
+    from gymnasium import spaces
 
 import mimicgen    
 import robosuite as suite
