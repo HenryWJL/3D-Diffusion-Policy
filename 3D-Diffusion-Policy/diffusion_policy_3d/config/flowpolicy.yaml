@@ -6,6 +6,8 @@ name: train_flowpolicy
 task_name: ${task.name}
 shape_meta: ${task.shape_meta}
 exp_name: "debug"
+ckpt_paths: ""
+hf_repo_id: "HenryWJL/flowpolicy"
 
 horizon: 16
 n_obs_steps: 2
