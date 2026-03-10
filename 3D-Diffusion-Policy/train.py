@@ -178,11 +178,14 @@ class TrainDP3Workspace:
         RUN_VALIDATION = False # reduce time cost
 
         if self.local_rank == 0:
-            # configure env
-            env_runner: BaseRunner
-            env_runner = hydra.utils.instantiate(
-                cfg.task.env_runner,
-                output_dir=self.output_dir)
+            if cfg.training.rollout_every <= cfg.training.num_epochs:
+                # configure env
+                env_runner: BaseRunner
+                env_runner = hydra.utils.instantiate(
+                    cfg.task.env_runner,
+                    output_dir=self.output_dir)
+            else:
+                env_runner = None
 
             if env_runner is not None:
                 assert isinstance(env_runner, BaseRunner)
