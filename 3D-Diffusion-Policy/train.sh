@@ -1,6 +1,6 @@
 cd 3D-Diffusion-Policy
 
-python train.py --config-name=dp3.yaml \
+python train.py --config-name=Freqpolicy.yaml \
                             task=mimicgen_three_piece_assembly \
                             task.dataset.zarr_path=data/mimicgen_assembly.zarr \
                             task.env_runner.eval_episodes=50 \
@@ -17,7 +17,7 @@ python train.py --config-name=dp3.yaml \
                             training.sample_every=4000 \
                             training.checkpoint_every=600
 
-python train.py --config-name=dp3.yaml \
+python train.py --config-name=Freqpolicy.yaml \
                             task=mimicgen_stack_three \
                             task.dataset.zarr_path=data/mimicgen_stack_three.zarr \
                             task.env_runner.eval_episodes=50 \
@@ -34,7 +34,7 @@ python train.py --config-name=dp3.yaml \
                             training.sample_every=4000 \
                             training.checkpoint_every=600
 
-python train.py --config-name=dp3.yaml \
+python train.py --config-name=Freqpolicy.yaml \
                             task=mimicgen_three_piece_assembly \
                             task.dataset.zarr_path=data/mimicgen_assembly.zarr \
                             task.env_runner.eval_episodes=50 \
@@ -51,7 +51,7 @@ python train.py --config-name=dp3.yaml \
                             training.sample_every=4000 \
                             training.checkpoint_every=600
 
-python train.py --config-name=dp3.yaml \
+python train.py --config-name=Freqpolicy.yaml \
                             task=mimicgen_stack_three \
                             task.dataset.zarr_path=data/mimicgen_stack_three.zarr \
                             task.env_runner.eval_episodes=50 \
@@ -68,7 +68,7 @@ python train.py --config-name=dp3.yaml \
                             training.sample_every=4000 \
                             training.checkpoint_every=600
 
-python train.py --config-name=dp3.yaml \
+python train.py --config-name=Freqpolicy.yaml \
                             task=mimicgen_three_piece_assembly \
                             task.dataset.zarr_path=data/mimicgen_assembly.zarr \
                             task.env_runner.eval_episodes=50 \
@@ -85,7 +85,7 @@ python train.py --config-name=dp3.yaml \
                             training.sample_every=4000 \
                             training.checkpoint_every=600
 
-python train.py --config-name=dp3.yaml \
+python train.py --config-name=Freqpolicy.yaml \
                             task=mimicgen_stack_three \
                             task.dataset.zarr_path=data/mimicgen_stack_three.zarr \
                             task.env_runner.eval_episodes=50 \
