@@ -312,29 +312,12 @@ class FGDP(BasePolicy):
                                 local_cond=local_cond, global_cond=global_cond)
             pred = (1 - alpha_t) * pred_k0 + alpha_t * pred_kt
 
-
-            # ks = k_schedule(t, T, k0, k_max)
-            # kl = torch.clamp(ks + 8, k0, k_max)
-            # alpha_t = alpha_schedule(t, T)
-            # trajectory_ks = dct_reconstruct(trajectory, ks)
-            # trajectory_kl = dct_reconstruct(trajectory, kl)
-            # pred_ks = model(sample=trajectory_ks,
-            #                     timestep=t,
-            #                     index=ks, 
-            #                     local_cond=local_cond, global_cond=global_cond)
-            # pred_kl = model(sample=trajectory_kl,
-            #                     timestep=t,
-            #                     index=kl, 
-            #                     local_cond=local_cond, global_cond=global_cond)
-            # pred = (1 - alpha_t) * pred_ks + alpha_t * pred_kl
-
-
             # ks, kl = dual_k_schedule(t, T, k0, k_max)
             # alpha_t = alpha_schedule(t, T)
 
+            # kl = kt
             # trajectory_ks = dct_reconstruct(trajectory, ks)
             # trajectory_kl = dct_reconstruct(trajectory, kl)
-
             # pred_ks = model(sample=trajectory_ks,
             #                     timestep=t,
             #                     index=ks, 
@@ -344,6 +327,7 @@ class FGDP(BasePolicy):
             #                     index=kl, 
             #                     local_cond=local_cond, global_cond=global_cond)
             # pred = (1 - alpha_t) * pred_ks + alpha_t * pred_kl
+            # ks = kl
 
             # k = k_schedule(t, T, k0, k_max)
             # trajectory = dct_reconstruct(trajectory, k)
@@ -499,8 +483,8 @@ class FGDP(BasePolicy):
         # k_max = torch.round(k_max)
         indices = sample_index(k_min, k_max, batch_size, trajectory.device, self.prob)
 
-        # # Reconstruct the trajectory
-        # trajectory = dct_reconstruct(trajectory, indices)
+        # Reconstruct the trajectory
+        trajectory = dct_reconstruct(trajectory, indices)
 
         # Sample noise that we'll add to the actions
         noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
@@ -509,8 +493,6 @@ class FGDP(BasePolicy):
         # (this is the forward diffusion process)
         noisy_trajectory = self.noise_scheduler.add_noise(
             trajectory, noise, timesteps)
-        
-        noisy_trajectory = dct_reconstruct(noisy_trajectory, indices)
 
         # compute loss mask
         loss_mask = ~condition_mask
