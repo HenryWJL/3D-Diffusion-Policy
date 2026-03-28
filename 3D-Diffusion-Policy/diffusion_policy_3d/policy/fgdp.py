@@ -489,10 +489,10 @@ class FGDP(BasePolicy):
 
         # Sample a reconstruction index
         k_min = int(self.k0_ratio * horizon)
-        k_max = horizon
+        # k_max = horizon
 
-        # k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
-        # k_max = torch.round(k_max)
+        k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
+        k_max = torch.round(k_max)
 
         # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
         # k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
