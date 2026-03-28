@@ -499,8 +499,8 @@ class FGDP(BasePolicy):
         # k_max = torch.round(k_max)
         indices = sample_index(k_min, k_max, batch_size, trajectory.device, self.prob)
 
-        # Reconstruct the trajectory
-        trajectory = dct_reconstruct(trajectory, indices)
+        # # Reconstruct the trajectory
+        # trajectory = dct_reconstruct(trajectory, indices)
 
         # Sample noise that we'll add to the actions
         noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
@@ -509,6 +509,8 @@ class FGDP(BasePolicy):
         # (this is the forward diffusion process)
         noisy_trajectory = self.noise_scheduler.add_noise(
             trajectory, noise, timesteps)
+        
+        noisy_trajectory = dct_reconstruct(noisy_trajectory, indices)
 
         # compute loss mask
         loss_mask = ~condition_mask
