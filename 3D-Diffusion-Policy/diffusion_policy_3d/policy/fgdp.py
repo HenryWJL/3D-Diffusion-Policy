@@ -32,6 +32,13 @@ from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 #     return k
 
 
+def sample_timestep(t_min, t_max, batch_size, device):
+    u = torch.rand(batch_size, device=device)
+    t = t_min + (t_max - t_min) * u
+    t = torch.floor(t)
+    return t
+
+
 def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
     if method == "uniform":
         u = torch.rand(batch_size, device=device)
@@ -465,23 +472,28 @@ class FGDP(BasePolicy):
         # generate impainting mask
         condition_mask = self.mask_generator(trajectory.shape)
 
-        # Sample a random timestep for each action
-        timesteps = torch.randint(
-            0, self.noise_scheduler.config.num_train_timesteps, 
-            (batch_size,), device=trajectory.device
-        ).long()
+        # # Sample a random timestep for each action
+        # timesteps = torch.randint(
+        #     0, self.noise_scheduler.config.num_train_timesteps, 
+        #     (batch_size,), device=trajectory.device
+        # ).long()
 
         # Sample a reconstruction index
         k_min = int(self.k0_ratio * horizon)
-        # k_max = horizon
+        k_max = horizon
 
-        k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
-        k_max = torch.round(k_max)
-
+        # # quadratic
+        # k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
+        # k_max = torch.round(k_max)
+        # # cosine
         # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
         # k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
         # k_max = torch.round(k_max)
         indices = sample_index(k_min, k_max, batch_size, trajectory.device, self.prob)
+
+        t_max = self.noise_scheduler.config.num_train_timesteps * (1 - torch.square((indices - k_min) / (k_max - k_min)))
+        t_max = torch.round(t_max)
+        timesteps = sample_timestep(0, t_max, batch_size, trajectory.device)
 
         # Reconstruct the trajectory
         trajectory = dct_reconstruct(trajectory, indices)
