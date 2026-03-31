@@ -35,7 +35,7 @@ from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 def sample_timestep(t_min, t_max, batch_size, device):
     u = torch.rand(batch_size, device=device)
     t = t_min + (t_max - t_min) * u
-    t = torch.floor(t)
+    t = t.long()
     return t
 
 
