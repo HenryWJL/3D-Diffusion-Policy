@@ -46,11 +46,18 @@ def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
         k = k_min + torch.floor((k_max - k_min + 1) * u ** 0.5).long()
     else:
         raise ValueError(f"Unsupported method {method}")
-    # With a probability @prob, k = k_min
-    mask = torch.rand(batch_size, device=device) < prob
+    # # With a probability @prob, k = k_min
+    # mask = torch.rand(batch_size, device=device) < prob
+    # k = torch.where(
+    #     mask,
+    #     torch.full_like(k, k_min),
+    #     k
+    # )
+    # With a probability 1-@prob, k = k_max
+    mask = torch.rand(batch_size, device=device) < 1 - prob
     k = torch.where(
         mask,
-        torch.full_like(k, k_min),
+        torch.full_like(k, k_max),
         k
     )
     return k
