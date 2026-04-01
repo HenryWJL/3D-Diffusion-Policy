@@ -46,18 +46,11 @@ def sample_index(k_min, k_max, batch_size, device, prob=0.2, method="uniform"):
         k = k_min + torch.floor((k_max - k_min + 1) * u ** 0.5).long()
     else:
         raise ValueError(f"Unsupported method {method}")
-    # # With a probability @prob, k = k_min
-    # mask = torch.rand(batch_size, device=device) < prob
-    # k = torch.where(
-    #     mask,
-    #     torch.full_like(k, k_min),
-    #     k
-    # )
-    # With a probability 1-@prob, k = k_max
-    mask = torch.rand(batch_size, device=device) < 1 - prob
+    # With a probability @prob, k = k_min
+    mask = torch.rand(batch_size, device=device) < prob
     k = torch.where(
         mask,
-        torch.full_like(k, k_max),
+        torch.full_like(k, k_min),
         k
     )
     return k
@@ -480,11 +473,14 @@ class FGDP(BasePolicy):
 
         # Sample a reconstruction index
         k_min = int(self.k0_ratio * horizon)
-        k_max = horizon
+        # k_max = horizon
 
-        # # quadratic
-        # k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
-        # k_max = torch.round(k_max)
+        # linear
+        k_max = k_min + (horizon - k_min) * (1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
+        k_max = torch.round(k_max)
+        # quadratic
+        k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
+        k_max = torch.round(k_max)
         # # cosine
         # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
         # k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
