@@ -478,9 +478,9 @@ class FGDP(BasePolicy):
         # linear
         k_max = k_min + (horizon - k_min) * (1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
         k_max = torch.round(k_max)
-        # quadratic
-        k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
-        k_max = torch.round(k_max)
+        # # quadratic
+        # k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
+        # k_max = torch.round(k_max)
         # # cosine
         # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
         # k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
