@@ -1,3 +1,504 @@
+# from typing import Dict
+# import math
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+# from einops import rearrange, reduce
+# from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+# from termcolor import cprint
+# import copy
+# import time
+
+# from diffusion_policy_3d.model.common.normalizer import LinearNormalizer
+# from diffusion_policy_3d.policy.base_policy import BasePolicy
+# from diffusion_policy_3d.model.diffusion.conditional_unet1d import ConditionalUnet1D
+# from diffusion_policy_3d.model.diffusion.mask_generator import LowdimMaskGenerator
+# from diffusion_policy_3d.common.pytorch_util import dict_apply
+# from diffusion_policy_3d.common.model_util import print_params
+# from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
+# from diffusers.schedulers.scheduling_ddim import DDIMSchedulerOutput
+
+
+# class DP3(BasePolicy):
+#     def __init__(self, 
+#             shape_meta: dict,
+#             noise_scheduler: DDPMScheduler,
+#             horizon, 
+#             n_action_steps, 
+#             n_obs_steps,
+#             num_inference_steps=None,
+#             obs_as_global_cond=True,
+#             diffusion_step_embed_dim=256,
+#             down_dims=(256,512,1024),
+#             kernel_size=5,
+#             n_groups=8,
+#             condition_type="film",
+#             use_down_condition=True,
+#             use_mid_condition=True,
+#             use_up_condition=True,
+#             encoder_output_dim=256,
+#             crop_shape=None,
+#             use_pc_color=False,
+#             pointnet_type="pointnet",
+#             pointcloud_encoder_cfg=None,
+#             # parameters passed to step
+#             **kwargs):
+#         super().__init__()
+
+#         self.condition_type = condition_type
+
+#         # parse shape_meta
+#         action_shape = shape_meta['action']['shape']
+#         self.action_shape = action_shape
+#         if len(action_shape) == 1:
+#             action_dim = action_shape[0]
+#         elif len(action_shape) == 2: # use multiple hands
+#             action_dim = action_shape[0] * action_shape[1]
+#         else:
+#             raise NotImplementedError(f"Unsupported action shape {action_shape}")
+            
+#         obs_shape_meta = shape_meta['obs']
+#         obs_dict = dict_apply(obs_shape_meta, lambda x: x['shape'])
+
+
+#         obs_encoder = DP3Encoder(observation_space=obs_dict,
+#                                                    img_crop_shape=crop_shape,
+#                                                 out_channel=encoder_output_dim,
+#                                                 pointcloud_encoder_cfg=pointcloud_encoder_cfg,
+#                                                 use_pc_color=use_pc_color,
+#                                                 pointnet_type=pointnet_type,
+#                                                 )
+
+#         # create diffusion model
+#         obs_feature_dim = obs_encoder.output_shape()
+#         input_dim = action_dim + obs_feature_dim
+#         global_cond_dim = None
+#         if obs_as_global_cond:
+#             input_dim = action_dim
+#             if "cross_attention" in self.condition_type:
+#                 global_cond_dim = obs_feature_dim
+#             else:
+#                 global_cond_dim = obs_feature_dim * n_obs_steps
+        
+
+#         self.use_pc_color = use_pc_color
+#         self.pointnet_type = pointnet_type
+#         cprint(f"[DiffusionUnetHybridPointcloudPolicy] use_pc_color: {self.use_pc_color}", "yellow")
+#         cprint(f"[DiffusionUnetHybridPointcloudPolicy] pointnet_type: {self.pointnet_type}", "yellow")
+
+
+
+#         model = ConditionalUnet1D(
+#             input_dim=input_dim,
+#             local_cond_dim=None,
+#             global_cond_dim=global_cond_dim,
+#             diffusion_step_embed_dim=diffusion_step_embed_dim,
+#             down_dims=down_dims,
+#             kernel_size=kernel_size,
+#             n_groups=n_groups,
+#             condition_type=condition_type,
+#             use_down_condition=use_down_condition,
+#             use_mid_condition=use_mid_condition,
+#             use_up_condition=use_up_condition,
+#         )
+
+#         self.obs_encoder = obs_encoder
+#         self.model = model
+#         self.noise_scheduler = noise_scheduler
+        
+        
+#         self.noise_scheduler_pc = copy.deepcopy(noise_scheduler)
+#         self.mask_generator = LowdimMaskGenerator(
+#             action_dim=action_dim,
+#             obs_dim=0 if obs_as_global_cond else obs_feature_dim,
+#             max_n_obs_steps=n_obs_steps,
+#             fix_obs_steps=True,
+#             action_visible=False
+#         )
+        
+#         self.normalizer = LinearNormalizer()
+#         self.horizon = horizon
+#         self.obs_feature_dim = obs_feature_dim
+#         self.action_dim = action_dim
+#         self.n_action_steps = n_action_steps
+#         self.n_obs_steps = n_obs_steps
+#         self.obs_as_global_cond = obs_as_global_cond
+#         self.kwargs = kwargs
+
+#         if num_inference_steps is None:
+#             num_inference_steps = noise_scheduler.config.num_train_timesteps
+#         self.num_inference_steps = num_inference_steps
+
+#         self.prev_pred_original_sample = None
+#         print_params(self)
+
+#     def step(
+#         self,
+#         model_output: torch.Tensor,
+#         timestep: int,
+#         sample: torch.Tensor,
+#         eta: float = 0.0,
+#         use_clipped_model_output: bool = False,
+#         generator: torch.Generator | None = None,
+#         variance_noise: torch.Tensor | None = None,
+#         return_dict: bool = True,
+#     ) -> DDIMSchedulerOutput | tuple:
+#         """
+#         Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion
+#         process from the learned model outputs (most often the predicted noise).
+
+#         Args:
+#             model_output (`torch.Tensor`):
+#                 The direct output from learned diffusion model.
+#             timestep (`int`):
+#                 The current discrete timestep in the diffusion chain.
+#             sample (`torch.Tensor`):
+#                 A current instance of a sample created by the diffusion process.
+#             eta (`float`, *optional*, defaults to 0.0):
+#                 The weight of noise for added noise in diffusion step. A value of 0 corresponds to DDIM (deterministic)
+#                 and 1 corresponds to DDPM (fully stochastic).
+#             use_clipped_model_output (`bool`, *optional*, defaults to `False`):
+#                 If `True`, computes "corrected" `model_output` from the clipped predicted original sample. Necessary
+#                 because predicted original sample is clipped to [-1, 1] when `self.config.clip_sample` is `True`. If no
+#                 clipping has happened, "corrected" `model_output` would coincide with the one provided as input and
+#                 `use_clipped_model_output` has no effect.
+#             generator (`torch.Generator`, *optional*):
+#                 A random number generator for reproducible sampling.
+#             variance_noise (`torch.Tensor`, *optional*):
+#                 Alternative to generating noise with `generator` by directly providing the noise for the variance
+#                 itself. Useful for methods such as [`CycleDiffusion`].
+#             return_dict (`bool`, *optional*, defaults to `True`):
+#                 Whether or not to return a [`~schedulers.scheduling_ddim.DDIMSchedulerOutput`] or `tuple`.
+
+#         Returns:
+#             [`~schedulers.scheduling_ddim.DDIMSchedulerOutput`] or `tuple`:
+#                 If return_dict is `True`, [`~schedulers.scheduling_ddim.DDIMSchedulerOutput`] is returned, otherwise a
+#                 tuple is returned where the first element is the sample tensor.
+
+#         """
+#         if self.noise_scheduler.num_inference_steps is None:
+#             raise ValueError(
+#                 "Number of inference steps is 'None', you need to run 'set_timesteps' after creating the scheduler"
+#             )
+
+#         # See formulas (12) and (16) of DDIM paper https://huggingface.co/papers/2010.02502
+#         # Ideally, read DDIM paper in-detail understanding
+
+#         # Notation (<variable name> -> <name in paper>
+#         # - pred_noise_t -> e_theta(x_t, t)
+#         # - pred_original_sample -> f_theta(x_t, t) or x_0
+#         # - std_dev_t -> sigma_t
+#         # - eta -> η
+#         # - pred_sample_direction -> "direction pointing to x_t"
+#         # - pred_prev_sample -> "x_t-1"
+
+#         # 1. get previous step value (=t-1)
+#         prev_timestep = timestep - self.noise_scheduler.config.num_train_timesteps // self.noise_scheduler.num_inference_steps
+
+#         # 2. compute alphas, betas
+#         alpha_prod_t = self.noise_scheduler.alphas_cumprod[timestep]
+#         alpha_prod_t_prev = self.noise_scheduler.alphas_cumprod[prev_timestep] if prev_timestep >= 0 else self.noise_scheduler.final_alpha_cumprod
+
+#         beta_prod_t = 1 - alpha_prod_t
+
+#         # 3. compute predicted original sample from predicted noise also called
+#         # "predicted x_0" of formula (12) from https://huggingface.co/papers/2010.02502
+#         if self.noise_scheduler.config.prediction_type == "epsilon":
+#             pred_original_sample = (sample - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)
+#             pred_epsilon = model_output
+#         elif self.noise_scheduler.config.prediction_type == "sample":
+#             pred_original_sample = model_output
+#             pred_epsilon = (sample - alpha_prod_t ** (0.5) * pred_original_sample) / beta_prod_t ** (0.5)
+#         elif self.noise_scheduler.config.prediction_type == "v_prediction":
+#             pred_original_sample = (alpha_prod_t**0.5) * sample - (beta_prod_t**0.5) * model_output
+#             pred_epsilon = (alpha_prod_t**0.5) * model_output + (beta_prod_t**0.5) * sample
+#         else:
+#             raise ValueError(
+#                 f"prediction_type given as {self.noise_scheduler.config.prediction_type} must be one of `epsilon`, `sample`, or"
+#                 " `v_prediction`"
+#             )
+
+#         # 4. Clip or threshold "predicted x_0"
+#         if self.noise_scheduler.config.thresholding:
+#             pred_original_sample = self.noise_scheduler._threshold_sample(pred_original_sample)
+#         elif self.noise_scheduler.config.clip_sample:
+#             pred_original_sample = pred_original_sample.clamp(
+#                 -self.noise_scheduler.config.clip_sample_range, self.noise_scheduler.config.clip_sample_range
+#             )
+
+#         #================ Core Modification ================#
+#         if self.prev_pred_original_sample is not None:
+#             T = self.horizon
+#             Ta = self.n_action_steps
+#             weights = torch.arange(1, T-Ta+1, device=pred_original_sample.device) / (T-Ta)
+#             weights = weights[None, :, None]
+#             pred_original_sample[:, :T-Ta, :] = weights * pred_original_sample[:, :T-Ta, :] + (1 - weights) * self.prev_pred_original_sample.pop(0)[:, Ta:, :]
+#         #================ Core Modification ================#
+
+#         # 5. compute variance: "sigma_t(η)" -> see formula (16)
+#         # σ_t = sqrt((1 − α_t−1)/(1 − α_t)) * sqrt(1 − α_t/α_t−1)
+#         variance = self.noise_scheduler._get_variance(timestep, prev_timestep)
+#         std_dev_t = eta * variance ** (0.5)
+
+#         if use_clipped_model_output:
+#             # the pred_epsilon is always re-derived from the clipped x_0 in Glide
+#             pred_epsilon = (sample - alpha_prod_t ** (0.5) * pred_original_sample) / beta_prod_t ** (0.5)
+
+#         # 6. compute "direction pointing to x_t" of formula (12) from https://huggingface.co/papers/2010.02502
+#         pred_sample_direction = (1 - alpha_prod_t_prev - std_dev_t**2) ** (0.5) * pred_epsilon
+
+#         # 7. compute x_t without "random noise" of formula (12) from https://huggingface.co/papers/2010.02502
+#         prev_sample = alpha_prod_t_prev ** (0.5) * pred_original_sample + pred_sample_direction
+
+#         if eta > 0:
+#             if variance_noise is not None and generator is not None:
+#                 raise ValueError(
+#                     "Cannot pass both generator and variance_noise. Please make sure that either `generator` or"
+#                     " `variance_noise` stays `None`."
+#                 )
+
+#             if variance_noise is None:
+#                 # variance_noise = randn_tensor(
+#                 #     model_output.shape, generator=generator, device=model_output.device, dtype=model_output.dtype
+#                 # )
+#                 pass
+#             variance = std_dev_t * variance_noise
+
+#             prev_sample = prev_sample + variance
+
+#         if not return_dict:
+#             return (
+#                 prev_sample,
+#                 pred_original_sample,
+#             )
+
+#         return DDIMSchedulerOutput(prev_sample=prev_sample, pred_original_sample=pred_original_sample)
+
+#     # ========= inference  ============
+#     def conditional_sample(self, 
+#             condition_data, condition_mask,
+#             condition_data_pc=None, condition_mask_pc=None,
+#             local_cond=None, global_cond=None,
+#             generator=None,
+#             # keyword arguments to scheduler.step
+#             **kwargs
+#             ):
+#         model = self.model
+#         scheduler = self.noise_scheduler
+
+
+#         trajectory = torch.randn(
+#             size=condition_data.shape, 
+#             dtype=condition_data.dtype,
+#             device=condition_data.device)
+
+#         # set step values
+#         scheduler.set_timesteps(self.num_inference_steps)
+
+#         prev_original_samples = []
+#         for t in scheduler.timesteps:
+#             # 1. apply conditioning
+#             trajectory[condition_mask] = condition_data[condition_mask]
+
+
+#             pred = model(sample=trajectory,
+#                                 timestep=t, 
+#                                 local_cond=local_cond, global_cond=global_cond)
+            
+#             # 3. compute previous image: x_t -> x_t-1
+#             prev = self.step(
+#                 pred, t, trajectory, )
+#             trajectory = prev.prev_sample
+#             prev_original_samples.append(prev.pred_original_sample)
+
+                
+#         # finally make sure conditioning is enforced
+#         trajectory[condition_mask] = condition_data[condition_mask]   
+
+#         # Update
+#         self.prev_pred_original_sample = list(prev_original_samples)
+
+#         return trajectory
+
+
+#     def predict_action(self, obs_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+#         """
+#         obs_dict: must include "obs" key
+#         result: must include "action" key
+#         """
+#         # normalize input
+#         nobs = self.normalizer.normalize(obs_dict)
+        
+#         value = next(iter(nobs.values()))
+#         B, To = value.shape[:2]
+#         T = self.horizon
+#         Da = self.action_dim
+#         Do = self.obs_feature_dim
+#         To = self.n_obs_steps
+
+#         # build input
+#         device = self.device
+#         dtype = self.dtype
+
+#         # handle different ways of passing observation
+#         local_cond = None
+#         global_cond = None
+#         if self.obs_as_global_cond:
+#             # condition through global feature
+#             this_nobs = dict_apply(nobs, lambda x: x[:,:To,...].reshape(-1,*x.shape[2:]))
+#             nobs_features = self.obs_encoder(this_nobs)
+#             if "cross_attention" in self.condition_type:
+#                 # treat as a sequence
+#                 global_cond = nobs_features.reshape(B, self.n_obs_steps, -1)
+#             else:
+#                 # reshape back to B, Do
+#                 global_cond = nobs_features.reshape(B, -1)
+#             # empty data for action
+#             cond_data = torch.zeros(size=(B, T, Da), device=device, dtype=dtype)
+#             cond_mask = torch.zeros_like(cond_data, dtype=torch.bool)
+#         else:
+#             # condition through impainting
+#             this_nobs = dict_apply(nobs, lambda x: x[:,:To,...].reshape(-1,*x.shape[2:]))
+#             nobs_features = self.obs_encoder(this_nobs)
+#             # reshape back to B, T, Do
+#             nobs_features = nobs_features.reshape(B, To, -1)
+#             cond_data = torch.zeros(size=(B, T, Da+Do), device=device, dtype=dtype)
+#             cond_mask = torch.zeros_like(cond_data, dtype=torch.bool)
+#             cond_data[:,:To,Da:] = nobs_features
+#             cond_mask[:,:To,Da:] = True
+
+#         # run sampling
+#         nsample = self.conditional_sample(
+#             cond_data, 
+#             cond_mask,
+#             local_cond=local_cond,
+#             global_cond=global_cond,
+#             **self.kwargs)
+        
+#         # unnormalize prediction
+#         naction_pred = nsample[...,:Da]
+#         action_pred = self.normalizer['action'].unnormalize(naction_pred)
+
+#         # get action
+#         start = To - 1
+#         end = start + self.n_action_steps
+#         action = action_pred[:,start:end]
+        
+#         # get prediction
+
+
+#         result = {
+#             'action': action,
+#             'action_pred': action_pred,
+#         }
+        
+#         return result
+
+#     # ========= training  ============
+#     def set_normalizer(self, normalizer: LinearNormalizer):
+#         self.normalizer.load_state_dict(normalizer.state_dict())
+
+#     def compute_loss(self, batch):
+#         # normalize input
+#         nobs = self.normalizer.normalize(batch['obs'])
+#         for key, val in nobs.items():
+#             nobs[key] = val.float()
+#         nactions = self.normalizer['action'].normalize(batch['action'])
+#         nactions = nactions.float()
+        
+#         batch_size = nactions.shape[0]
+#         horizon = nactions.shape[1]
+
+#         # handle different ways of passing observation
+#         local_cond = None
+#         global_cond = None
+#         trajectory = nactions
+#         cond_data = trajectory
+         
+#         if self.obs_as_global_cond:
+#             # reshape B, T, ... to B*T
+#             this_nobs = dict_apply(nobs, 
+#                 lambda x: x[:,:self.n_obs_steps,...].reshape(-1,*x.shape[2:]))
+#             nobs_features = self.obs_encoder(this_nobs)
+
+#             if "cross_attention" in self.condition_type:
+#                 # treat as a sequence
+#                 global_cond = nobs_features.reshape(batch_size, self.n_obs_steps, -1)
+#             else:
+#                 # reshape back to B, Do
+#                 global_cond = nobs_features.reshape(batch_size, -1)
+#         else:
+#             # reshape B, T, ... to B*T
+#             this_nobs = dict_apply(nobs, lambda x: x.reshape(-1, *x.shape[2:]))
+#             nobs_features = self.obs_encoder(this_nobs)
+#             # reshape back to B, T, Do
+#             nobs_features = nobs_features.reshape(batch_size, horizon, -1)
+#             cond_data = torch.cat([nactions, nobs_features], dim=-1)
+#             trajectory = cond_data.detach()
+
+#         # generate impainting mask
+#         condition_mask = self.mask_generator(trajectory.shape)
+
+#         # Sample noise that we'll add to the images
+#         noise = torch.randn(trajectory.shape, device=trajectory.device, dtype=trajectory.dtype)
+
+#         bsz = trajectory.shape[0]
+#         # Sample a random timestep for each image
+#         timesteps = torch.randint(
+#             0, self.noise_scheduler.config.num_train_timesteps, 
+#             (bsz,), device=trajectory.device
+#         ).long()
+
+#         # Add noise to the clean images according to the noise magnitude at each timestep
+#         # (this is the forward diffusion process)
+#         noisy_trajectory = self.noise_scheduler.add_noise(
+#             trajectory, noise, timesteps)
+
+#         # compute loss mask
+#         loss_mask = ~condition_mask
+
+#         # apply conditioning
+#         noisy_trajectory[condition_mask] = cond_data[condition_mask]
+
+#         # Predict the noise residual
+#         pred = self.model(sample=noisy_trajectory, 
+#                         timestep=timesteps, 
+#                             local_cond=local_cond, 
+#                             global_cond=global_cond)
+
+
+#         pred_type = self.noise_scheduler.config.prediction_type 
+#         if pred_type == 'epsilon':
+#             target = noise
+#         elif pred_type == 'sample':
+#             target = trajectory
+#         elif pred_type == 'v_prediction':
+#             # https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
+#             # https://github.com/huggingface/diffusers/blob/v0.11.1-patch/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
+#             # sigma = self.noise_scheduler.sigmas[timesteps]
+#             # alpha_t, sigma_t = self.noise_scheduler._sigma_to_alpha_sigma_t(sigma)
+#             self.noise_scheduler.alpha_t = self.noise_scheduler.alpha_t.to(self.device)
+#             self.noise_scheduler.sigma_t = self.noise_scheduler.sigma_t.to(self.device)
+#             alpha_t, sigma_t = self.noise_scheduler.alpha_t[timesteps], self.noise_scheduler.sigma_t[timesteps]
+#             alpha_t = alpha_t.unsqueeze(-1).unsqueeze(-1)
+#             sigma_t = sigma_t.unsqueeze(-1).unsqueeze(-1)
+#             v_t = alpha_t * noise - sigma_t * trajectory
+#             target = v_t
+#         else:
+#             raise ValueError(f"Unsupported prediction type {pred_type}")
+
+#         loss = F.mse_loss(pred, target, reduction='none')
+#         loss = loss * loss_mask.type(loss.dtype)
+#         loss = reduce(loss, 'b ... -> b (...)', 'mean')
+#         loss = loss.mean()
+        
+#         loss_dict = {
+#                 'bc_loss': loss.item(),
+#             }
+
+#         return loss, loss_dict
+    
+
 from typing import Dict
 import math
 import torch
