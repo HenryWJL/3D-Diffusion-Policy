@@ -18,9 +18,9 @@ shape_meta: &shape_meta
     robot0_eef_quat:
       shape: [4]
       type: low_dim
-    # robot0_gripper_qpos:
-    #   shape: [2]
-    #   type: low_dim
+    robot0_gripper_qpos:
+      shape: [2]
+      type: low_dim
   action:
     shape: [10]
 
