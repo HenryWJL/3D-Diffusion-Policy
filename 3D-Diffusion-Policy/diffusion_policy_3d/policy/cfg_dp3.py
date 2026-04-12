@@ -127,8 +127,8 @@ class CFGDP3(BasePolicy):
             num_inference_steps = noise_scheduler.config.num_train_timesteps
         self.num_inference_steps = num_inference_steps
 
-        self.null_obs_cond = nn.Parameter(torch.randn(global_cond_dim))
-        self.cond_drop_prob = 0.2
+        # self.null_obs_cond = nn.Parameter(torch.randn(global_cond_dim))
+        # self.cond_drop_prob = 0.2
 
         print_params(self)
 
@@ -158,15 +158,15 @@ class CFGDP3(BasePolicy):
             # 1. apply conditioning
             trajectory[condition_mask] = condition_data[condition_mask]
 
-            pred_cond = model(sample=trajectory,
+            pred_ori = model(sample=trajectory,
                                 timestep=t, 
                                 local_cond=local_cond, global_cond=global_cond)
 
-            pred_uncond = model(sample=trajectory,
+            pred_flipped = model(sample=trajectory,
                                 timestep=t, 
-                                local_cond=local_cond, global_cond=self.null_obs_cond[None, :])
-            omega = 1.5
-            pred = pred_uncond + omega * (pred_cond - pred_uncond)
+                                local_cond=local_cond, global_cond=global_cond.flip(1))
+            omega = 3.0
+            pred = pred_ori + omega * (pred_ori - pred_flipped)
             
             # 3. compute previous image: x_t -> x_t-1
             trajectory = scheduler.step(
@@ -295,14 +295,9 @@ class CFGDP3(BasePolicy):
             cond_data = torch.cat([nactions, nobs_features], dim=-1)
             trajectory = cond_data.detach()
 
-        # Randomly dropout obs conditioning
-        prob_drop_mask = torch.rand((batch_size, 1), device=trajectory.device) < self.cond_drop_prob
-        null_obs_cond = self.null_obs_cond[None, :]
-        global_cond = torch.where(
-            prob_drop_mask,
-            null_obs_cond,
-            global_cond
-        )
+        # Randomly flip obs conditioning
+        flip_mask = torch.rand((batch_size), device=trajectory.device) < 0.2
+        global_cond[flip_mask] = global_cond[flip_mask].flip(1)
 
         # generate impainting mask
         condition_mask = self.mask_generator(trajectory.shape)
