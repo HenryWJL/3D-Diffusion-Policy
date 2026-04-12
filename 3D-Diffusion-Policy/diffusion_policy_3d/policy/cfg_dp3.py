@@ -144,6 +144,12 @@ class CFGDP3(BasePolicy):
         model = self.model
         scheduler = self.noise_scheduler
 
+        batch_size = global_cond.shape[0]
+
+        if len(global_cond.shape) == 2:
+            global_cond_flipped = global_cond.reshape(batch_size, self.n_obs_steps, -1).flip(1).reshape(batch_size, -1)
+        else:
+            global_cond_flipped = global_cond.flip(1)
 
         trajectory = torch.randn(
             size=condition_data.shape, 
@@ -164,7 +170,7 @@ class CFGDP3(BasePolicy):
 
             pred_flipped = model(sample=trajectory,
                                 timestep=t, 
-                                local_cond=local_cond, global_cond=global_cond.flip(1))
+                                local_cond=local_cond, global_cond=global_cond_flipped)
             omega = 3.0
             pred = pred_ori + omega * (pred_ori - pred_flipped)
             
@@ -296,8 +302,11 @@ class CFGDP3(BasePolicy):
             trajectory = cond_data.detach()
 
         # Randomly flip obs conditioning
+        if len(global_cond.shape) == 2:
+            global_cond = global_cond.reshape(batch_size, self.n_obs_steps, -1)
         flip_mask = torch.rand((batch_size), device=trajectory.device) < 0.2
         global_cond[flip_mask] = global_cond[flip_mask].flip(1)
+        global_cond = global_cond.reshape(batch_size, -1)
 
         # generate impainting mask
         condition_mask = self.mask_generator(trajectory.shape)
