@@ -1,57 +1,57 @@
 cd 3D-Diffusion-Policy
 
-# python train.py --config-name=fgdp.yaml \
-#                             task=robosuite_square \
-#                             task.dataset.zarr_path=data/robosuite_square.zarr \
-#                             task.env_runner.eval_episodes=50 \
-#                             training.seed=0 \
-#                             training.num_epochs=3000 \
-#                             dataloader.batch_size=512 \
-#                             dataloader.num_workers=8 \
-#                             val_dataloader.num_workers=8 \
-#                             training.device="cuda" \
-#                             logging.mode=online \
-#                             checkpoint.save_ckpt=true \
-#                             training.rollout_every=600 \
-#                             training.val_every=4000 \
-#                             training.sample_every=4000 \
-#                             training.checkpoint_every=600
+python train.py --config-name=trans_dp3.yaml \
+                            task=robosuite_square \
+                            task.dataset.zarr_path=data/robosuite_square.zarr \
+                            task.env_runner.eval_episodes=50 \
+                            training.seed=0 \
+                            training.num_epochs=3000 \
+                            dataloader.batch_size=512 \
+                            dataloader.num_workers=8 \
+                            val_dataloader.num_workers=8 \
+                            training.device="cuda" \
+                            logging.mode=online \
+                            checkpoint.save_ckpt=true \
+                            training.rollout_every=600 \
+                            training.val_every=4000 \
+                            training.sample_every=4000 \
+                            training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
-#                             task=robosuite_square \
-#                             task.dataset.zarr_path=data/robosuite_square.zarr \
-#                             task.env_runner.eval_episodes=50 \
-#                             training.seed=1 \
-#                             training.num_epochs=3000 \
-#                             dataloader.batch_size=512 \
-#                             dataloader.num_workers=8 \
-#                             val_dataloader.num_workers=8 \
-#                             training.device="cuda" \
-#                             logging.mode=online \
-#                             checkpoint.save_ckpt=true \
-#                             training.rollout_every=600 \
-#                             training.val_every=4000 \
-#                             training.sample_every=4000 \
-#                             training.checkpoint_every=600
+python train.py --config-name=trans_dp3.yaml \
+                            task=robosuite_square \
+                            task.dataset.zarr_path=data/robosuite_square.zarr \
+                            task.env_runner.eval_episodes=50 \
+                            training.seed=1 \
+                            training.num_epochs=3000 \
+                            dataloader.batch_size=512 \
+                            dataloader.num_workers=8 \
+                            val_dataloader.num_workers=8 \
+                            training.device="cuda" \
+                            logging.mode=online \
+                            checkpoint.save_ckpt=true \
+                            training.rollout_every=600 \
+                            training.val_every=4000 \
+                            training.sample_every=4000 \
+                            training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
-#                             task=robosuite_square \
-#                             task.dataset.zarr_path=data/robosuite_square.zarr \
-#                             task.env_runner.eval_episodes=50 \
-#                             training.seed=2 \
-#                             training.num_epochs=3000 \
-#                             dataloader.batch_size=512 \
-#                             dataloader.num_workers=8 \
-#                             val_dataloader.num_workers=8 \
-#                             training.device="cuda" \
-#                             logging.mode=online \
-#                             checkpoint.save_ckpt=true \
-#                             training.rollout_every=600 \
-#                             training.val_every=4000 \
-#                             training.sample_every=4000 \
-#                             training.checkpoint_every=600
+python train.py --config-name=trans_dp3.yaml \
+                            task=robosuite_square \
+                            task.dataset.zarr_path=data/robosuite_square.zarr \
+                            task.env_runner.eval_episodes=50 \
+                            training.seed=2 \
+                            training.num_epochs=3000 \
+                            dataloader.batch_size=512 \
+                            dataloader.num_workers=8 \
+                            val_dataloader.num_workers=8 \
+                            training.device="cuda" \
+                            logging.mode=online \
+                            checkpoint.save_ckpt=true \
+                            training.rollout_every=600 \
+                            training.val_every=4000 \
+                            training.sample_every=4000 \
+                            training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=robosuite_can \
 #                             task.dataset.zarr_path=data/robosuite_can.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -68,7 +68,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=robosuite_can \
 #                             task.dataset.zarr_path=data/robosuite_can.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -85,7 +85,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=robosuite_can \
 #                             task.dataset.zarr_path=data/robosuite_can.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -102,7 +102,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=robosuite_stack \
 #                             task.dataset.zarr_path=data/robosuite_stack.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -119,7 +119,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=robosuite_stack \
 #                             task.dataset.zarr_path=data/robosuite_stack.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -136,7 +136,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=robosuite_stack \
 #                             task.dataset.zarr_path=data/robosuite_stack.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -153,7 +153,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_threading \
 #                             task.dataset.zarr_path=data/mimicgen_threading.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -170,7 +170,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_threading \
 #                             task.dataset.zarr_path=data/mimicgen_threading.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -187,7 +187,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_threading \
 #                             task.dataset.zarr_path=data/mimicgen_threading.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -204,7 +204,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_three_piece_assembly \
 #                             task.dataset.zarr_path=data/mimicgen_assembly.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -221,7 +221,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_three_piece_assembly \
 #                             task.dataset.zarr_path=data/mimicgen_assembly.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -238,7 +238,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_three_piece_assembly \
 #                             task.dataset.zarr_path=data/mimicgen_assembly.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -255,7 +255,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_stack_three \
 #                             task.dataset.zarr_path=data/mimicgen_stack_three.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -272,7 +272,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_stack_three \
 #                             task.dataset.zarr_path=data/mimicgen_stack_three.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -289,7 +289,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=mimicgen_stack_three \
 #                             task.dataset.zarr_path=data/mimicgen_stack_three.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -306,7 +306,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_hammer \
 #                             task.dataset.zarr_path=data/adroit_hammer_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -323,7 +323,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_door \
 #                             task.dataset.zarr_path=data/adroit_door_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -340,7 +340,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_pen \
 #                             task.dataset.zarr_path=data/adroit_pen_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -357,7 +357,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_bucket \
 #                             task.dataset.zarr_path=data/dexart_bucket_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -374,7 +374,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_faucet \
 #                             task.dataset.zarr_path=data/dexart_faucet_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -391,7 +391,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600                      
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_laptop \
 #                             task.dataset.zarr_path=data/dexart_laptop_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -408,7 +408,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_toilet \
 #                             task.dataset.zarr_path=data/dexart_toilet_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -425,7 +425,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_hammer \
 #                             task.dataset.zarr_path=data/adroit_hammer_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -442,7 +442,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_door \
 #                             task.dataset.zarr_path=data/adroit_door_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -459,7 +459,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_pen \
 #                             task.dataset.zarr_path=data/adroit_pen_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -476,7 +476,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_bucket \
 #                             task.dataset.zarr_path=data/dexart_bucket_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -493,7 +493,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_faucet \
 #                             task.dataset.zarr_path=data/dexart_faucet_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -510,7 +510,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600                      
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_laptop \
 #                             task.dataset.zarr_path=data/dexart_laptop_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -527,7 +527,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_toilet \
 #                             task.dataset.zarr_path=data/dexart_toilet_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -544,7 +544,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_hammer \
 #                             task.dataset.zarr_path=data/adroit_hammer_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -561,7 +561,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_door \
 #                             task.dataset.zarr_path=data/adroit_door_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -578,7 +578,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=adroit_pen \
 #                             task.dataset.zarr_path=data/adroit_pen_expert.zarr \
 #                             task.env_runner.eval_episodes=50 \
@@ -595,7 +595,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_bucket \
 #                             task.dataset.zarr_path=data/dexart_bucket_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -612,7 +612,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_faucet \
 #                             task.dataset.zarr_path=data/dexart_faucet_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -629,7 +629,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600                      
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_laptop \
 #                             task.dataset.zarr_path=data/dexart_laptop_expert.zarr \
 #                             task.env_runner.n_train=50 \
@@ -646,7 +646,7 @@ cd 3D-Diffusion-Policy
 #                             training.sample_every=4000 \
 #                             training.checkpoint_every=600
 
-# python train.py --config-name=fgdp.yaml \
+# python train.py --config-name=trans_dp3.yaml \
 #                             task=dexart_toilet \
 #                             task.dataset.zarr_path=data/dexart_toilet_expert.zarr \
 #                             task.env_runner.n_train=50 \
