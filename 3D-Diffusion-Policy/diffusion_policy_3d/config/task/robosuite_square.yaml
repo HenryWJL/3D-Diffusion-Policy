@@ -3,10 +3,10 @@ name: robosuite_square
 shape_meta: &shape_meta
   obs:
     frontview_pc:
-      shape: [1024, 3]
+      shape: [512, 3]
       type: point_cloud
     robot0_eye_in_hand_pc:
-      shape: [1024, 3]
+      shape: [512, 3]
       type: point_cloud
     # frontview_pc_mask:
     #   shape: [512]
