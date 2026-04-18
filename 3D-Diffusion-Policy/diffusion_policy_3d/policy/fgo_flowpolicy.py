@@ -81,7 +81,7 @@ def alpha_schedule(t, T, alpha_min=0.0, alpha_max=1.0, power=1.0):
     return (1 - t / T) ** power
 
 
-class DiTFlowpolicy(BasePolicy):
+class FGOFlowpolicy(BasePolicy):
     def __init__(self, 
             shape_meta: dict,
             horizon, 
@@ -92,6 +92,7 @@ class DiTFlowpolicy(BasePolicy):
             timeshift=1.0,
             obs_as_global_cond=True,
             diffusion_step_embed_dim=256,
+            index_embed_dim=256,
             condition_type="film",
             encoder_output_dim=256,
             embed_dim=768,
@@ -157,6 +158,7 @@ class DiTFlowpolicy(BasePolicy):
             input_dim=input_dim,
             global_cond_dim=global_cond_dim,
             timestep_embed_dim=diffusion_step_embed_dim,
+            index_embed_dim=index_embed_dim,
             embed_dim=embed_dim,
             depth=depth,
             num_heads=num_heads,
