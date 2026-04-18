@@ -17,7 +17,7 @@ from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
 
-class TransformerDP3(BasePolicy):
+class DiTFlowpolicy(BasePolicy):
     def __init__(self, 
             shape_meta: dict,
             horizon, 
