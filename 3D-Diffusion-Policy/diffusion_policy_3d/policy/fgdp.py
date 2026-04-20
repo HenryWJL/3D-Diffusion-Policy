@@ -79,6 +79,16 @@ def dct_reconstruct(trajectory, indices):
     return traj_recons
 
 
+def approx_truncated_posterior(sample, pred_original_sample, alpha_prod_t, index):
+    # Low-pass filtered x_0 prediction
+    pred_original_sample_l = dct_reconstruct(pred_original_sample, index)
+    # High-pass filtered x_0 prediction
+    pred_original_sample_h = pred_original_sample - pred_original_sample_l
+    # Compute low-pass filtered sample
+    sample_l = sample - alpha_prod_t ** (0.5) * pred_original_sample_h
+    return sample_l
+
+
 def k_schedule(t, T, k0, k_max, power=1.0):
     """
     t: current diffusion step
@@ -103,7 +113,7 @@ def k_schedule(t, T, k0, k_max, power=1.0):
 #     k = k_max - (k_max - k0) * torch.exp(-lamb * s)
 #     return torch.round(k)
 
-# def k_schedule(t, T, k0, k_max, eta=1.0):
+# def k_schedule(t, T, k0, k_max, eta=2.0):
 #     s = 1.0 - t / T
 #     s = s.clamp(0.0, 1.0)
 #     frac = ((1 - torch.cos(math.pi * s)) / 2) ** eta
@@ -129,7 +139,7 @@ def alpha_schedule(t, T, alpha_min=0.0, alpha_max=1.0, power=1.0):
 # def alpha_schedule(t, T, lamb=4.0):
 #     return 1.0 - torch.exp(-lamb * (1.0 - t / T))
 
-# def alpha_schedule(t, T, eta=1.0):
+# def alpha_schedule(t, T, eta=2.0):
 #     s = 1.0 - t / T
 #     return ((1 - torch.cos(math.pi * s)) / 2) ** eta
 
@@ -301,7 +311,6 @@ class FGDP(BasePolicy):
 
             trajectory_k0 = dct_reconstruct(trajectory, k0)
             trajectory_kt = dct_reconstruct(trajectory, kt)
-
             pred_k0 = model(sample=trajectory_k0,
                                 timestep=t,
                                 index=k0, 
@@ -473,14 +482,14 @@ class FGDP(BasePolicy):
 
         # Sample a reconstruction index
         k_min = int(self.k0_ratio * horizon)
-        # k_max = horizon
+        k_max = horizon
 
         # # linear
         # k_max = k_min + (horizon - k_min) * (1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
         # k_max = torch.round(k_max)
-        # quadratic
-        k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
-        k_max = torch.round(k_max)
+        # # quadratic
+        # k_max = k_min + (horizon - k_min) * torch.sqrt(1 - timesteps / self.noise_scheduler.config.num_train_timesteps)
+        # k_max = torch.round(k_max)
         # # cosine
         # s = 1 - timesteps / self.noise_scheduler.config.num_train_timesteps
         # k_max = k_min + (horizon - k_min) * torch.sin(math.pi / 2 * s)
