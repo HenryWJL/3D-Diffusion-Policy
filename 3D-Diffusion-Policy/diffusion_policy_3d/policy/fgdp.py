@@ -284,7 +284,7 @@ class FGDP(BasePolicy):
             device=condition_data.device)
 
         # set step values
-        scheduler.set_timesteps(self.num_inference_steps)
+        scheduler.set_timesteps(self.num_inference_steps, device=self.device)
 
         H = condition_data.shape[1]
         k0 = max(1, int(H * self.k0_ratio))
