@@ -48,12 +48,12 @@ class AdaLNAttentionBlock(nn.Module):
             nn.Linear(cond_dim, 6 * dim),
         )
 
-    def forward(self, x, cond, pos_embed=None, attn_mask=None):
+    def forward(self, x, cond, pos_embed=None, attn_mask=None, force_identity_attn=False):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
             self.adaLN_modulation(cond).chunk(6, dim=1)
         )
         x = x + gate_msa.unsqueeze(1) * self.attn(
-            modulate(self.norm1(x), shift_msa, scale_msa), pos_embed, attn_mask
+            modulate(self.norm1(x), shift_msa, scale_msa), pos_embed, attn_mask, force_identity_attn # ACG
         )
         x = x + gate_mlp.unsqueeze(1) * self.mlp(
             modulate(self.norm2(x), shift_mlp, scale_mlp)

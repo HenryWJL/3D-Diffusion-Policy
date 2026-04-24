@@ -60,7 +60,7 @@ class Attention(nn.Module):
                 requires_grad=False,
             )
 
-    def forward(self, x, pos_embed=None, attn_mask=None):
+    def forward(self, x, pos_embed=None, attn_mask=None, force_identity_attn=False):
         B, N, D = x.shape
 
         # Attention mask has shape (B, N, N) and dtype torch.bool where a
@@ -79,29 +79,34 @@ class Attention(nn.Module):
             q = apply_rotary_embed(q, pos_embed)
             k = apply_rotary_embed(k, pos_embed)
 
-        if self.use_sdpa:
-            x = F.scaled_dot_product_attention(
-                q, k, v, attn_mask, dropout_p=self.attn_drop.p, is_causal=self.is_causal
-            )
+        #===== Action Coherence Guidance (ACG) =====#
+        if force_identity_attn:
+            x = v
+        #===========================================#
         else:
-            attn = (q @ k.transpose(-2, -1)) / (self.head_dim**0.5)
-            if self.is_causal:
-                assert attn_mask is None
-                assert N % self.causal_block == 0
-                num_blocks = N // self.causal_block
-                block_diag_mat = torch.block_diag(
-                    *[self.causal_block_mat for _ in range(num_blocks)]
+            if self.use_sdpa:
+                x = F.scaled_dot_product_attention(
+                    q, k, v, attn_mask, dropout_p=self.attn_drop.p, is_causal=self.is_causal
                 )
-                triu_mat = torch.triu(
-                    torch.ones(N, N, device=x.device), diagonal=1
-                ).bool()
-                mask = torch.logical_and(~block_diag_mat, triu_mat)
-                attn = attn.masked_fill(mask.view(1, 1, N, N), float("-inf"))
-            if attn_mask is not None:
-                attn = attn.masked_fill(~attn_mask, float("-inf"))
-            attn = attn.softmax(dim=-1)
-            attn = self.attn_drop(attn)
-            x = attn @ v
+            else:
+                attn = (q @ k.transpose(-2, -1)) / (self.head_dim**0.5)
+                if self.is_causal:
+                    assert attn_mask is None
+                    assert N % self.causal_block == 0
+                    num_blocks = N // self.causal_block
+                    block_diag_mat = torch.block_diag(
+                        *[self.causal_block_mat for _ in range(num_blocks)]
+                    )
+                    triu_mat = torch.triu(
+                        torch.ones(N, N, device=x.device), diagonal=1
+                    ).bool()
+                    mask = torch.logical_and(~block_diag_mat, triu_mat)
+                    attn = attn.masked_fill(mask.view(1, 1, N, N), float("-inf"))
+                if attn_mask is not None:
+                    attn = attn.masked_fill(~attn_mask, float("-inf"))
+                attn = attn.softmax(dim=-1)
+                attn = self.attn_drop(attn)
+                x = attn @ v
 
         x = x.transpose(1, 2).reshape(B, N, D)
         x = self.proj(x)

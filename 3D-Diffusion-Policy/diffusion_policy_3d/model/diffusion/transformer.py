@@ -79,7 +79,7 @@ class TransformerNoisePredictionNet(nn.Module):
         nn.init.constant_(self.head.linear.weight, 0)
         nn.init.constant_(self.head.linear.bias, 0)
 
-    def forward(self, sample, timestep, global_cond):
+    def forward(self, sample, timestep, global_cond, force_identity_attn=False):
         # Encode input
         embed = self.input_encoder(sample)
 
@@ -93,8 +93,10 @@ class TransformerNoisePredictionNet(nn.Module):
         # Concatenate timestep and condition along the sequence dimension
         x = embed + self.pos_embed
         cond = torch.cat([global_cond, temb], dim=-1)
-        for block in self.blocks:
-            x = block(x, cond)
+        identity_attn_block_ids = [4, 5, 6] # ACG
+        for i, block in enumerate(self.blocks):
+            apply_acg = force_identity_attn and (i in identity_attn_block_ids) # ACG
+            x = block(x, cond, force_identity_attn=apply_acg) # ACG
         x = self.head(x, cond)
 
         # Decode output
