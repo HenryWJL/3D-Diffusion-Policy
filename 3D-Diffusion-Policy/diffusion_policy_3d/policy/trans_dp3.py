@@ -157,6 +157,12 @@ class TransformerDP3(BasePolicy):
             pred = model(sample=trajectory,
                                 timestep=t, 
                                 global_cond=global_cond)
+            # pred_ic = model(sample=trajectory,
+            #                     timestep=t, 
+            #                     global_cond=global_cond,
+            #                     force_identity_attn=True)
+            # guidance_weight = 3.0
+            # pred = (1 + guidance_weight) * pred - guidance_weight * pred_ic
             
             # 3. compute previous image: x_t -> x_t-1
             trajectory = scheduler.step(
