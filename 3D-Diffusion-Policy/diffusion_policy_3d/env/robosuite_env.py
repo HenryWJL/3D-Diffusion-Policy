@@ -42,6 +42,49 @@ def get_box_space(sample: np.ndarray) -> spaces.Box:
     return spaces.Box(low=low, high=high, shape=sample.shape, dtype=sample.dtype)
 
 
+def compute_smoothness_metrics(actions, accelerations, dt=1.0):
+    """
+    Computes ATV and JerkRMS.
+    
+    Args:
+        actions: np.ndarray of shape (N, D) - e.g., (N, 7) for delta_actions
+        accelerations: np.ndarray of shape (N, C) - e.g., (N, 7) joint accelerations
+        dt: float, the control timestep (default 1.0 if time-scaling is ignored)
+        
+    Returns:
+        atv (float): Action Total Variance
+        jerk_rms (float): Jerk Root Mean Square
+    """
+    
+    # ==========================================
+    # 1. Action Total Variance (ATV)
+    # ==========================================
+    # The formula divides the total sum of absolute differences by M*(T-1).
+    # Since M*(T-1) is exactly the total number of elements in the difference array,
+    # this is mathematically identical to simply taking the global mean.
+    
+    action_diffs = np.abs(actions[1:] - actions[:-1])
+    atv = np.mean(action_diffs)
+    
+    
+    # ==========================================
+    # 2. Jerk Root Mean Square (JerkRMS)
+    # ==========================================
+    # Calculate jerk using a single backward difference of the acceleration.
+    # Resulting shape: (N-1, C)
+    jerks = (accelerations[1:] - accelerations[:-1]) / dt
+    
+    # Compute the squared L2 norm for each timestep: || jerk_t ||_2^2
+    # We sum the squares across the joint dimension (axis=1)
+    jerk_l2_squared = np.sum(jerks**2, axis=1)
+    
+    # Take the mean across the time dimension (1 / (N-1) * sum), 
+    # then apply the square root.
+    jerk_rms = np.sqrt(np.mean(jerk_l2_squared))
+    
+    return atv, jerk_rms
+
+
 class RobosuiteEnv(gym.Env):
 
     def __init__(
@@ -147,6 +190,15 @@ class RobosuiteEnv(gym.Env):
         self.seed_state_map = {}
         self.task_completion_hold_count = -1
 
+        #============== Evaluation ==============#
+        self.action_buffer = []
+        self.acceleration_buffer = []
+        self.atv_buffer = []
+        self.jerk_rms_buffer = []
+        self.global_step = 0
+        self.control_freq = control_freq
+        #========================================#
+
     def _extract_seg_mask(self, seg_image: np.ndarray) -> np.ndarray:
         """
         Extract robot segmentation masks.
@@ -198,6 +250,12 @@ class RobosuiteEnv(gym.Env):
         self._seed = seed
 
     def reset(self, **kwargs) -> Dict:
+        #============== Evaluation ==============#
+        self.action_buffer = []
+        self.acceleration_buffer = []
+        self.global_step = 0
+        #========================================#
+
         self.task_completion_hold_count = -1
         if self._seed is not None:
             seed = self._seed
@@ -268,6 +326,22 @@ class RobosuiteEnv(gym.Env):
             self.task_completion_hold_count = -1
         done = not self.task_completion_hold_count
         info['is_success'] = done
+
+        #============== Evaluation ==============#
+        # self.action_buffer.append(action)
+        # qacc = self._env.sim.data.qacc[self._env.robots[0]._ref_joint_vel_indexes]
+        # self.acceleration_buffer.append(qacc)
+        # self.global_step += 1
+        # if self.global_step == 32:
+        #     actions = np.stack(self.action_buffer)
+        #     accelerations = np.stack(self.acceleration_buffer)
+        #     atv, jerk_rms = compute_smoothness_metrics(actions, accelerations, 1 / self.control_freq)
+        #     self.atv_buffer.append(atv)
+        #     self.jerk_rms_buffer.append(jerk_rms)
+        #     print("Current mean ATV: ", np.mean(self.atv_buffer))
+        #     print("Current mean JerkRMS: ", np.mean(self.jerk_rms_buffer))
+        #     done = True
+        #========================================#
         return obs, reward, done, info
 
     def render(self, **kwargs) -> None:
