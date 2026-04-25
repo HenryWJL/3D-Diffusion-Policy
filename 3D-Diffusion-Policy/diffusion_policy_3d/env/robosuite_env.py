@@ -328,6 +328,7 @@ class RobosuiteEnv(gym.Env):
         info['is_success'] = done
 
         #============== Evaluation ==============#
+        # action = self._env.sim.data.qpos[self._env.robots[0]._ref_joint_vel_indexes]
         # self.action_buffer.append(action)
         # qacc = self._env.sim.data.qacc[self._env.robots[0]._ref_joint_vel_indexes]
         # self.acceleration_buffer.append(qacc)
