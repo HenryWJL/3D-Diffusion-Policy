@@ -64,7 +64,7 @@ class DexArtRunner(BaseRunner):
 
         all_returns_train = []
         all_success_rates_train = []
-
+        videos = []
 
         ##############################
         # train env loop
@@ -111,7 +111,7 @@ class DexArtRunner(BaseRunner):
 
             all_returns_train.append(reward_sum)
             all_success_rates_train.append(env_train.is_success())
-
+            videos.append(env_train.env.get_video())
        
 
         SR_mean_train = np.mean(all_success_rates_train)
@@ -135,13 +135,18 @@ class DexArtRunner(BaseRunner):
 
         cprint( f"Mean SR train: {SR_mean_train:.3f}", 'green')
 
-        # visualize sim
-        videos_train = env_train.env.get_video()
+        # # visualize sim
+        # videos_train = env_train.env.get_video()
 
-        if len(videos_train.shape) == 5:
-            videos_train = videos_train[:, 0]
-        sim_video_train = wandb.Video(videos_train, fps=self.fps, format="mp4")
-        log_data[f'sim_video_train'] = sim_video_train
+        # if len(videos_train.shape) == 5:
+        #     videos_train = videos_train[:, 0]
+        # sim_video_train = wandb.Video(videos_train, fps=self.fps, format="mp4")
+        # log_data[f'sim_video_train'] = sim_video_train
+
+        # Save videos
+        import imageio
+        videos = np.transpose(np.concatenate(videos), (0, 2, 3, 1))  # -> (T, H, W, C)
+        imageio.mimwrite("rollout.mp4", videos, fps=30, codec='libx264')
 
         # clear out video buffer
         _ = env_train.reset()
