@@ -93,7 +93,7 @@ class TransformerNoisePredictionNet(nn.Module):
         # Concatenate timestep and condition along the sequence dimension
         x = embed + self.pos_embed
         cond = torch.cat([global_cond, temb], dim=-1)
-        identity_attn_block_ids = [4, 5, 6] # ACG
+        identity_attn_block_ids = [3, 4, 5] # ACG
         for i, block in enumerate(self.blocks):
             apply_acg = force_identity_attn and (i in identity_attn_block_ids) # ACG
             x = block(x, cond, force_identity_attn=apply_acg) # ACG
