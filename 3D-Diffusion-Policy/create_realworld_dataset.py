@@ -220,7 +220,7 @@ def main(root, save_path, use_color, num_points, rotation_type):
     point_cloud = []
     ee_pos = []
     ee_quat = []
-    gripper_pos = []
+    gripper_qpos = []
     action = []
     episode_ends = []
     for pc_path in pc_paths:
@@ -243,7 +243,7 @@ def main(root, save_path, use_color, num_points, rotation_type):
         f = np.load(str(low_dim_path), allow_pickle=True)
         ee_pos.append(f['ee_pos'])
         ee_quat.append(f['ee_quat'])
-        gripper_pos.append(f['gripper_pos'])
+        gripper_qpos.append(f['gripper_pos'])
 
         target_ee_pos = f['ee_pos']
         target_ee_quat = f['ee_quat']
@@ -257,7 +257,7 @@ def main(root, save_path, use_color, num_points, rotation_type):
     point_cloud = np.concatenate(point_cloud)
     ee_pos = np.concatenate(ee_pos)
     ee_quat = np.concatenate(ee_quat)
-    gripper_pos = np.concatenate(gripper_pos)
+    gripper_qpos = np.concatenate(gripper_qpos)
     action = np.concatenate(action)
     episode_ends = np.cumsum(episode_ends)
     print("Number of episodes: ", len(episode_ends))
@@ -268,7 +268,7 @@ def main(root, save_path, use_color, num_points, rotation_type):
         z['data/point_cloud'] = point_cloud
         z['data/ee_pos'] = ee_pos
         z['data/ee_quat'] = ee_quat
-        z['data/gripper_pos'] = gripper_pos
+        z['data/gripper_qpos'] = gripper_qpos
         z['data/action'] = action
         z['meta/episode_ends'] = episode_ends
 
