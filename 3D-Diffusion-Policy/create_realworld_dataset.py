@@ -248,8 +248,7 @@ def main(root, save_path, use_color, num_points, rotation_type):
         target_ee_pos = f['ee_pos']
         target_ee_quat = f['ee_quat']
         target_ee_rotation6d = rot_trans.forward(target_ee_quat)
-        gripper_desired = f['gripper_desired']
-        gripper_desired = (gripper_desired > 0.1).astype(np.float32)[:, np.newaxis]
+        gripper_desired = f['gripper_desired'][:, np.newaxis]
         action.append(np.concatenate([target_ee_pos, target_ee_rotation6d, gripper_desired], axis=-1))
 
         # Episode length
