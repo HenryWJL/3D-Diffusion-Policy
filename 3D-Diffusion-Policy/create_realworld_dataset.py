@@ -243,7 +243,7 @@ def main(root, save_path, use_color, num_points, rotation_type):
         f = np.load(str(low_dim_path), allow_pickle=True)
         ee_pos.append(f['ee_pos'])
         ee_quat.append(f['ee_quat'])
-        gripper_qpos.append(f['gripper_pos'])
+        gripper_qpos.append(f['gripper_pos'][:, np.newaxis])
 
         target_ee_pos = f['ee_pos']
         target_ee_quat = f['ee_quat']
