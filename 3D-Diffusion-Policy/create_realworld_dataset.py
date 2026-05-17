@@ -14,6 +14,7 @@ BOUNDING_BOX = {
     'lower_bound': [-0.25, -0.5, 0],
     'upper_bound': [1.0, 0.4, 1.0]
 }
+LOW_DIM_KEYS = ['arm_qpos', 'arm_qvel', 'ee_pos', 'ee_quat', 'gripper_qpos']
 
 
 # def visualize_pc(xyz, rgb=None):
@@ -218,6 +219,8 @@ def main(root, save_path, use_color, num_points, rotation_type):
     save_path = Path(save_path).expanduser().absolute()
 
     point_cloud = []
+    arm_qpos = []
+    arm_qvel = []
     ee_pos = []
     ee_quat = []
     gripper_qpos = []
@@ -241,6 +244,8 @@ def main(root, save_path, use_color, num_points, rotation_type):
         # Low dimensional data (proprioception and action)
         low_dim_path = pc_path.parent.joinpath(pc_path.name.replace("points", "actions"))
         f = np.load(str(low_dim_path), allow_pickle=True)
+        arm_qpos.append(f['q'])
+        arm_qvel.append(f['q_dot'])
         ee_pos.append(f['ee_pos'])
         ee_quat.append(f['ee_quat'])
         gripper_qpos.append(f['gripper_pos'][:, np.newaxis])
@@ -255,20 +260,23 @@ def main(root, save_path, use_color, num_points, rotation_type):
         episode_ends.append(len(pc))
 
     point_cloud = np.concatenate(point_cloud)
-    ee_pos = np.concatenate(ee_pos)
-    ee_quat = np.concatenate(ee_quat)
-    gripper_qpos = np.concatenate(gripper_qpos)
+    low_dims = dict(
+        arm_qpos=np.concatenate(arm_qpos),
+        arm_qvel=np.concatenate(arm_qvel),
+        ee_pos=np.concatenate(ee_pos),
+        ee_quat=np.concatenate(ee_quat),
+        gripper_qpos=np.concatenate(gripper_qpos),
+    )
     action = np.concatenate(action)
     episode_ends = np.cumsum(episode_ends)
     print("Number of episodes: ", len(episode_ends))
-    print("Totol episode length: ", len(ee_pos))
+    print("Totol episode length: ", len(action))
     print("All episode ends: ", episode_ends)
 
     with zarr.open(str(save_path), 'w') as z:
         z['data/point_cloud'] = point_cloud
-        z['data/ee_pos'] = ee_pos
-        z['data/ee_quat'] = ee_quat
-        z['data/gripper_qpos'] = gripper_qpos
+        for key in LOW_DIM_KEYS:
+            z[f'data/{key}'] = low_dims[key]
         z['data/action'] = action
         z['meta/episode_ends'] = episode_ends
 
