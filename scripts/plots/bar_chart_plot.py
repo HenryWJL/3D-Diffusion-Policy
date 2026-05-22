@@ -17,9 +17,7 @@ plt.rcParams.update({
 
 # 2. Global Data and Labels
 legend_labels = ['FGO', r'$p_{\mathrm{base}} = 0$', 'W/o KFC Sampling', r'Cosine $f_k$ Schedule', r'Cosine $\omega_k$ Schedule']
-# colors = ['#2d678e', '#b88b37', '#428769', '#af6231', '#b78bb5', '#b08b6f'] 
 colors = ['#FFE0B2', '#FFB74D', '#FF9800', '#F57C00', '#E65100']
-
 
 # Dictionary holding the specific configurations for each subplot
 tasks = {
@@ -28,6 +26,7 @@ tasks = {
         'std':  [3.1, 2.0, 2.0, 3.1, 5.0], 
         'ylabel': 'Success Rate (%)',
         'ylim': (75, 100), 
+        'yticks': [75, 80, 85, 90, 95, 100], # Explicit y-ticks
         'invert_y': False
     },
     'Adroit Door': {
@@ -35,6 +34,7 @@ tasks = {
         'std':  [2.3, 3.1, 3.1, 2.0, 7.8],
         'ylabel': 'Success Rate (%)',
         'ylim': (50, 85), 
+        'yticks': [50, 55, 60, 65, 70, 75, 80, 85], # Explicit y-ticks
         'invert_y': False
     },
     'DexArt Toilet': {
@@ -42,12 +42,13 @@ tasks = {
         'std':  [1.2, 3.1, 5.0, 5.3, 9.2], 
         'ylabel': 'Success Rate (%)',
         'ylim': (45, 75), 
+        'yticks': [45, 50, 55, 60, 65, 70, 75], # Explicit y-ticks
         'invert_y': False
     }
 }
 
 # 3. Create figure and subplots (1 row, 3 columns)
-fig, axes = plt.subplots(1, 3, figsize=(11, 4.5)) # Slightly taller figure to accommodate the legend
+fig, axes = plt.subplots(1, 3, figsize=(11, 4.5)) 
 
 # 4. Plotting Loop
 for ax, (title, info) in zip(axes, tasks.items()):
@@ -63,29 +64,31 @@ for ax, (title, info) in zip(axes, tasks.items()):
             i, val, 
             yerr=std_val, capsize=4, 
             width=0.75, color=color, 
-            edgecolor='black', linewidth=1.0, # Changed to black boundary
+            edgecolor='black', linewidth=1.0, 
             error_kw={'elinewidth': 1.2, 'capthick': 1.2, 'ecolor': '#333333'}
         )
         
         # Determine text placement accounting for the error bar height
         if not info['invert_y']:
-            # Normal axis
             if val < info['ylim'][0]:
                 text_y = info['ylim'][0] + 1
             else:
                 text_y = val + std_val + 1
         else:
-            # Inverted axis
             text_y = val - std_val - 1
             
         label_text = f'{val:.1f}'
-        # ax.text(i, text_y, label_text, ha='center', va='center', fontsize=8)
 
     # Subplot Formatting
     ax.set_title(title, pad=10)
     ax.set_ylabel(info['ylabel'], fontsize=16)
     ax.set_xticks([]) 
     ax.set_ylim(info['ylim']) 
+    
+    # --- ADDED SPECIFIC Y-AXIS TICKS AND VISUAL TICK LINES HERE ---
+    ax.set_yticks(info['yticks'])
+    # Force the left y-ticks to display, length=4, width=1.2 to match spine width
+    ax.tick_params(axis='y', which='major', left=True, size=4, width=1.2, labelsize=14)
         
     # Gridlines
     ax.yaxis.grid(True, linestyle='--', linewidth=0.5, color='#e0e0e0')
@@ -103,7 +106,7 @@ legend_patches = [mpatches.Patch(color=color, label=label) for color, label in z
 fig.legend(
     handles=legend_patches,
     loc='upper center',
-    bbox_to_anchor=(0.5, 0.25), # Adjusted higher relative to the bottom of the figure
+    bbox_to_anchor=(0.5, 0.25), 
     ncol=5, 
     frameon=True,
     borderpad=0.8,
@@ -112,7 +115,6 @@ fig.legend(
 )
 
 # 6. Layout Adjustment
-# The rect argument [left, bottom, right, top] reserves the bottom 20% of the figure for the legend
 plt.tight_layout(rect=[0, 0.2, 1, 1])
 plt.savefig("full_ablations.pdf", bbox_inches='tight', pad_inches=0)
 plt.show()
