@@ -335,7 +335,36 @@ class AdroitEnv:
                 dtype=np.float32
             )
 
+        # get env ids corresponding to the robot hand
+        model = self._env.sim.model
+        hand_dof_ids = []
+        for i in range(model.nu):
+            trntype = model.actuator_trntype[i]
+            if trntype != 0:  # 0 == mjtTrn.mjTRN_JOINT
+                raise ValueError(
+                    f"Actuator {i} is not a direct joint transmission "
+                    f"(trntype={trntype}); can't map 1:1 to a single qacc entry."
+                )
+            joint_id = model.actuator_trnid[i, 0]
+            dof_addr = model.jnt_dofadr[joint_id]
+            hand_dof_ids.append(dof_addr)
+        self.hand_dof_ids = hand_dof_ids
+
+        #============== Evaluation ==============#
+        self.action_buffer = []
+        self.acceleration_buffer = []
+        self.atv_buffer = []
+        self.jerk_rms_buffer = []
+        self.global_step = 0
+        self.num_succ = 0
+        #========================================#
+
     def reset(self):
+        #============== Evaluation ==============#
+        self.action_buffer = []
+        self.acceleration_buffer = []
+        self.global_step = 0
+        #========================================#
         # pixels and sensor values
         obs_pixels, obs_sensor = self._env.reset()
         obs_sensor = obs_sensor.astype(np.float32)
@@ -392,6 +421,38 @@ class AdroitEnv:
             'image': obs_pixels,  # (3, 84, 84), [0,255], uint8
             'agent_pos': obs_sensor  # (24,)
         }
+
+        #============== Evaluation ==============#
+        # action = self._env.sim.data.qpos[self.hand_dof_ids]
+        # self.action_buffer.append(action)
+        # qacc = self._env.sim.data.qacc[self.hand_dof_ids]
+        # self.acceleration_buffer.append(qacc)
+        # self.global_step += 1
+        # # # fixed-timestep rollout, only count over the first 32 timesteps
+        # # if self.global_step == 32:
+        # #     actions = np.stack(self.action_buffer)
+        # #     accelerations = np.stack(self.acceleration_buffer)
+        # #     from diffusion_policy_3d.env.robosuite_env import compute_smoothness_metrics
+        # #     atv, jerk_rms = compute_smoothness_metrics(actions, accelerations, 0.01)
+        # #     self.atv_buffer.append(atv)
+        # #     self.jerk_rms_buffer.append(jerk_rms)
+        # #     print("Current mean ATV: ", np.mean(self.atv_buffer))
+        # #     print("Current mean JerkRMS: ", np.mean(self.jerk_rms_buffer))
+        # #     done = True
+        
+        # # full-episode rollout, only count over the first 20 successful episodes
+        # if done and self.num_succ < 20:
+        #     actions = np.stack(self.action_buffer)
+        #     accelerations = np.stack(self.acceleration_buffer)
+        #     from diffusion_policy_3d.env.robosuite_env import compute_smoothness_metrics
+        #     atv, jerk_rms = compute_smoothness_metrics(actions, accelerations, 0.01)
+        #     self.atv_buffer.append(atv)
+        #     self.jerk_rms_buffer.append(jerk_rms)
+        #     self.num_succ += 1
+        #     if self.num_succ == 20:
+        #         print(f"Successful episode {self.num_succ}, current mean ATV: ", np.mean(self.atv_buffer))
+        #         print(f"Successful episode {self.num_succ}, current mean JerkRMS: ", np.mean(self.jerk_rms_buffer))
+        #========================================#
 
         return obs_dict, reward, done, env_info
 

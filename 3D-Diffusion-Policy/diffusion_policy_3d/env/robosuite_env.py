@@ -196,6 +196,7 @@ class RobosuiteEnv(gym.Env):
         self.atv_buffer = []
         self.jerk_rms_buffer = []
         self.global_step = 0
+        self.num_succ = 0
         self.control_freq = control_freq
         #========================================#
 
@@ -333,15 +334,29 @@ class RobosuiteEnv(gym.Env):
         # qacc = self._env.sim.data.qacc[self._env.robots[0]._ref_joint_vel_indexes]
         # self.acceleration_buffer.append(qacc)
         # self.global_step += 1
-        # if self.global_step == 32:
+
+        # # # fixed-timestep rollout, only count over the first 32 timesteps
+        # # if self.global_step == 32:
+        # #     actions = np.stack(self.action_buffer)
+        # #     accelerations = np.stack(self.acceleration_buffer)
+        # #     atv, jerk_rms = compute_smoothness_metrics(actions, accelerations, 1 / self.control_freq)
+        # #     self.atv_buffer.append(atv)
+        # #     self.jerk_rms_buffer.append(jerk_rms)
+        # #     print("Current mean ATV: ", np.mean(self.atv_buffer))
+        # #     print("Current mean JerkRMS: ", np.mean(self.jerk_rms_buffer))
+        # #     done = True
+
+        # # full-episode rollout, only count over the first 20 successful episodes
+        # if done and self.num_succ < 20:
         #     actions = np.stack(self.action_buffer)
         #     accelerations = np.stack(self.acceleration_buffer)
         #     atv, jerk_rms = compute_smoothness_metrics(actions, accelerations, 1 / self.control_freq)
         #     self.atv_buffer.append(atv)
         #     self.jerk_rms_buffer.append(jerk_rms)
-        #     print("Current mean ATV: ", np.mean(self.atv_buffer))
-        #     print("Current mean JerkRMS: ", np.mean(self.jerk_rms_buffer))
-        #     done = True
+        #     self.num_succ += 1
+        #     if self.num_succ == 20:
+        #         print(f"Successful episode {self.num_succ}, current mean ATV: ", np.mean(self.atv_buffer))
+        #         print(f"Successful episode {self.num_succ}, current mean JerkRMS: ", np.mean(self.jerk_rms_buffer))
         #========================================#
         return obs, reward, done, info
 
