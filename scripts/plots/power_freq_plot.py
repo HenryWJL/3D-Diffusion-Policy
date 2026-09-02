@@ -421,7 +421,7 @@ if __name__ == "__main__":
     parser.add_argument("--method", type=str, default='dft', help="Power spectral computing method (dft or welch)")
     parser.add_argument("--fs", type=float, default=20.0, help="Sampling frequency in Hz")
     parser.add_argument("--position", action="store_true", help="Compute PSD on position instead of velocity")
-    parser.add_argument("--save", type=str, default="power_spectral.pdf", help="Path to save the figure instead of displaying it")
+    parser.add_argument("--save", type=str, default="power_spectra.pdf", help="Path to save the figure instead of displaying it")
     args = parser.parse_args()
 
     # with h5py.File("data/robomimic_can/mh.hdf5", "r") as f:
