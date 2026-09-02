@@ -435,7 +435,11 @@ if __name__ == "__main__":
     with zarr.open("data/robosuite_can.zarr", 'r') as f:
         trajectory = f[f"/data/action"][()].astype(np.float32)[f[f"/meta/episode_ends"][()][20]:f[f"/meta/episode_ends"][()][21]]
         xyz = trajectory[:, :3]
-        xyz = xyz * 100
+        xyz[:, 0] += 3.32673304e-02
+        xyz[:, 1] += 1.07853949e-01
+        xyz[:, 2] -= 1.01142085
+        xyz *= 50
+        print(xyz)
         visualize_trajectory_and_psd(
             xyz, args.method, fs=args.fs, use_velocity=not args.position, save_path=args.save
         )
