@@ -16,30 +16,30 @@ plt.rcParams.update({
 })
 
 # 2. Global Data and Labels
-legend_labels = ['FGO', r'$p_{\mathrm{base}} = 0$', 'W/o KFC Sampling', r'Cosine $f_k$ Schedule', r'Cosine $\omega_k$ Schedule']
-colors = ['#FFE0B2', '#FFB74D', '#FF9800', '#F57C00', '#E65100']
+legend_labels = ['FGO', r'$p_{\mathrm{base}} = 0$', 'W/o KFC Sampling', 'W/o Guidance', r'Cosine $f_k$ Schedule', r'Cosine $\omega_k$ Schedule']
+colors = ['#FFE0B2', '#FFB74D', '#FF9800', '#F57C00', '#E65100', '#BF4500']
 
 # Dictionary holding the specific configurations for each subplot
 tasks = {
     'Robosuite Lift': {
-        'data': [92.7, 88.0, 88.0, 89.3, 86.7],
-        'std':  [3.1, 2.0, 2.0, 3.1, 5.0], 
+        'data': [92.7, 88.0, 88.0, 90.0, 89.3, 86.7],
+        'std':  [3.1, 2.0, 2.0, 4.0, 3.1, 5.0], 
         'ylabel': 'Success Rate (%)',
         'ylim': (75, 100), 
         'yticks': [75, 80, 85, 90, 95, 100], # Explicit y-ticks
         'invert_y': False
     },
     'Adroit Door': {
-        'data': [69.3, 68.7, 66.7, 66.0, 65.7], 
-        'std':  [2.3, 3.1, 3.1, 2.0, 7.8],
+        'data': [69.3, 68.7, 66.7, 65.3, 66.0, 65.7], 
+        'std':  [2.3, 3.1, 3.1, 8.1, 2.0, 7.8],
         'ylabel': 'Success Rate (%)',
         'ylim': (50, 85), 
         'yticks': [50, 55, 60, 65, 70, 75, 80, 85], # Explicit y-ticks
         'invert_y': False
     },
     'DexArt Toilet': {
-        'data': [66.7, 62.7, 59.3, 62.0, 60.7],
-        'std':  [1.2, 3.1, 5.0, 5.3, 9.2], 
+        'data': [66.7, 62.7, 59.3, 63.3, 62.0, 60.7],
+        'std':  [1.2, 3.1, 5.0, 1.2, 5.3, 9.2], 
         'ylabel': 'Success Rate (%)',
         'ylim': (45, 75), 
         'yticks': [45, 50, 55, 60, 65, 70, 75], # Explicit y-ticks
@@ -62,11 +62,18 @@ for ax, (title, info) in zip(axes, tasks.items()):
         # Draw the bar with error bars and black edge colors
         ax.bar(
             i, val, 
-            yerr=std_val, capsize=4, 
+            capsize=4, 
             width=0.75, color=color, 
             edgecolor='black', linewidth=1.0, 
             error_kw={'elinewidth': 1.2, 'capthick': 1.2, 'ecolor': '#333333'}
         )
+        # ax.bar(
+        #     i, val, 
+        #     yerr=std_val, capsize=4, 
+        #     width=0.75, color=color, 
+        #     edgecolor='black', linewidth=1.0, 
+        #     error_kw={'elinewidth': 1.2, 'capthick': 1.2, 'ecolor': '#333333'}
+        # )
         
         # Determine text placement accounting for the error bar height
         if not info['invert_y']:
@@ -107,11 +114,12 @@ fig.legend(
     handles=legend_patches,
     loc='upper center',
     bbox_to_anchor=(0.5, 0.25), 
-    ncol=5, 
+    ncol=6, 
     frameon=True,
     borderpad=0.8,
     framealpha=1.0,
-    edgecolor='#cccccc'
+    edgecolor='#cccccc',
+    columnspacing=0.8,
 )
 
 # 6. Layout Adjustment
