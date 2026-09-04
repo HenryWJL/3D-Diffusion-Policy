@@ -6,6 +6,8 @@ import matplotlib.patches as mpatches
 # 1. Theme and Aesthetics Setup
 sns.set_theme(style='white', context='talk')
 plt.rcParams.update({
+    'pdf.fonttype': 42,
+    'ps.fonttype': 42,
     'font.family': 'serif',
     'text.usetex': False, 
     'axes.labelsize': 11,

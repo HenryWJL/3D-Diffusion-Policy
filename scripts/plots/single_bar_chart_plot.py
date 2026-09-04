@@ -4,6 +4,8 @@ import seaborn as sns
 
 sns.set_theme(style='white', context='talk')
 plt.rcParams.update({
+    'pdf.fonttype': 42,
+    'ps.fonttype': 42,
     'font.family': 'serif',
     'text.usetex': False, 
     'axes.labelsize': 11,
@@ -36,7 +38,7 @@ orange_color = '#f8b16a'
 # Plot bars
 rects1 = ax.bar(x - width/2, dp3_success, width, label='DP3', 
                 color=gray_color, linewidth=1.2, alpha=1)
-rects2 = ax.bar(x + width/2, fgo_success, width, label='FGO (Ours)', 
+rects2 = ax.bar(x + width/2, fgo_success, width, label='DP3 + FGO', 
                 color=orange_color, linewidth=1.2, alpha=1)
 
 # Labels and ticks

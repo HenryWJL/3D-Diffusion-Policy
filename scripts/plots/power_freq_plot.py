@@ -166,6 +166,8 @@ from scipy.interpolate import make_interp_spline
 from matplotlib.patches import FancyArrowPatch
 
 # --- Global styling ---
+plt.rcParams["pdf.fonttype"] = 42
+plt.rcParams["ps.fonttype"] = 42
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = ["Times New Roman"]
 
@@ -417,29 +419,28 @@ def visualize_trajectory_and_psd(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--id", type=int, default=150, help="Demo id")
+    parser.add_argument("--id", type=int, default=200, help="Demo id")
     parser.add_argument("--method", type=str, default='dft', help="Power spectral computing method (dft or welch)")
     parser.add_argument("--fs", type=float, default=20.0, help="Sampling frequency in Hz")
     parser.add_argument("--position", action="store_true", help="Compute PSD on position instead of velocity")
     parser.add_argument("--save", type=str, default="power_spectra.pdf", help="Path to save the figure instead of displaying it")
     args = parser.parse_args()
 
-    # with h5py.File("data/robomimic_can/mh.hdf5", "r") as f:
-    #     trajectory = f[f"/data/demo_{args.id}/actions"][()].astype(np.float32)
-    #     delta_xyz = trajectory[:, :3]
-    #     xyz = np.cumsum(delta_xyz, axis=0)  # reconstruct relative position path from deltas
-    #     visualize_trajectory_and_psd(
-    #         xyz, args.method, fs=args.fs, use_velocity=not args.position, save_path=args.save
-    #     )
-
-    with zarr.open("data/robosuite_can.zarr", 'r') as f:
-        trajectory = f[f"/data/action"][()].astype(np.float32)[f[f"/meta/episode_ends"][()][20]:f[f"/meta/episode_ends"][()][21]]
-        xyz = trajectory[:, :3]
-        xyz[:, 0] += 3.32673304e-02
-        xyz[:, 1] += 1.07853949e-01
-        xyz[:, 2] -= 1.01142085
-        xyz *= 50
-        print(xyz)
+    with h5py.File("data/robomimic_can/mh.hdf5", "r") as f:
+        trajectory = f[f"/data/demo_{args.id}/actions"][()].astype(np.float32)
+        delta_xyz = trajectory[:, :3]
+        xyz = np.cumsum(delta_xyz, axis=0)  # reconstruct relative position path from deltas
         visualize_trajectory_and_psd(
             xyz, args.method, fs=args.fs, use_velocity=not args.position, save_path=args.save
         )
+
+    # with zarr.open("data/robosuite_can.zarr", 'r') as f:
+    #     trajectory = f[f"/data/action"][()].astype(np.float32)[f[f"/meta/episode_ends"][()][20]:f[f"/meta/episode_ends"][()][21]]
+    #     xyz = trajectory[:, :3]
+    #     xyz[:, 0] += 3.32673304e-02
+    #     xyz[:, 1] += 1.07853949e-01
+    #     xyz[:, 2] -= 1.01142085
+    #     xyz *= 50
+    #     visualize_trajectory_and_psd(
+    #         xyz, args.method, fs=args.fs, use_velocity=not args.position, save_path=args.save
+    #     )
